@@ -69,6 +69,7 @@
 
       const AVERAGE_SPEED_SECONDS = 65;
       const PRONUNCIATION_TIME_LIMIT_SECONDS = 8;
+      const DEFAULT_PRONUNCIATION_QUESTION_COUNT = 10;
 
       function normalizeText(text) {
         return (text || "")
@@ -156,6 +157,8 @@
           shuffleSentences(PRONUNCIATION_SENTENCES)
         );
         const [pronunciationIndex, setPronunciationIndex] = useState(0);
+        const [pronunciationQuestionCount, setPronunciationQuestionCount] = useState(DEFAULT_PRONUNCIATION_QUESTION_COUNT);
+        const [pronunciationTimeLimit, setPronunciationTimeLimit] = useState(PRONUNCIATION_TIME_LIMIT_SECONDS);
         const [pronunciationTimeLeft, setPronunciationTimeLeft] = useState(PRONUNCIATION_TIME_LIMIT_SECONDS);
         const [isPronunciationRecording, setIsPronunciationRecording] = useState(false);
         const [showPronunciationDetail, setShowPronunciationDetail] = useState(false);
@@ -282,7 +285,7 @@
           if (pronunciationIndex < activePronunciationSentences.length - 1) {
             const nextIndex = pronunciationIndex + 1;
             setPronunciationIndex(nextIndex);
-            setPronunciationTimeLeft(PRONUNCIATION_TIME_LIMIT_SECONDS);
+            setPronunciationTimeLeft(pronunciationTimeLimit);
           } else {
             setIsPronunciationRecording(false);
             clearInterval(pronunciationTimerRef.current);
@@ -291,7 +294,8 @@
         };
 
         const beginPronunciationRecording = () => {
-          const shuffledSentences = shuffleSentences(PRONUNCIATION_SENTENCES);
+          const selectedCount = Math.min(pronunciationQuestionCount, PRONUNCIATION_SENTENCES.length);
+          const shuffledSentences = shuffleSentences(PRONUNCIATION_SENTENCES).slice(0, selectedCount);
           setActivePronunciationSentences(shuffledSentences);
           setPronunciationResults(
             shuffledSentences.map((sentence, index) => ({
@@ -302,7 +306,7 @@
             }))
           );
           setPronunciationIndex(0);
-          setPronunciationTimeLeft(PRONUNCIATION_TIME_LIMIT_SECONDS);
+          setPronunciationTimeLeft(pronunciationTimeLimit);
           setShowPronunciationDetail(false);
           setRecognitionMessage("");
           setScreen("pronunciation-recording");
@@ -378,7 +382,7 @@
                 setTimeout(() => {
                   moveToNextPronunciationSentence();
                 }, 0);
-                return PRONUNCIATION_TIME_LIMIT_SECONDS;
+                return pronunciationTimeLimit;
               }
               return prev - 1;
             });
@@ -388,7 +392,7 @@
             clearInterval(pronunciationTimerRef.current);
             stopRecognition();
           };
-        }, [screen, isPronunciationRecording, pronunciationIndex]);
+        }, [screen, isPronunciationRecording, pronunciationIndex, pronunciationTimeLimit]);
 
         useEffect(() => {
           if (!isSpeedRecording) return undefined;
@@ -485,11 +489,46 @@
               <HomeButton />
               <h2 className="text-3xl font-black text-center text-indigo-900 mb-6">발음 연습</h2>
               <div className="rounded-2xl border border-gray-200 bg-white p-6 mb-8 text-gray-700 leading-8">
-                <p>10개의 문장을 읽으면 ai가 음성을 인식하며 발음을 확인합니다.</p>
-                <p>문장 당 8초의 시간제한이 있으며 시간이 끝나면 다음 문장으로 넘어갑니다.</p>
-                <p>10개 문장이 끝나면 인식된 문장과 인식율이 나옵니다.</p>
+                <p>{pronunciationQuestionCount}개의 문장을 읽으면 ai가 음성을 인식하며 발음을 확인합니다.</p>
+                <p>문장 당 {pronunciationTimeLimit}초의 시간제한이 있으며 시간이 끝나면 다음 문장으로 넘어갑니다.</p>
+                <p>선택한 문장이 끝나면 인식된 문장과 인식율이 나옵니다.</p>
                 <p>시작 버튼을 누르면 녹음이 시작됩니다.</p>
               </div>
+
+              <div className="mb-8 grid gap-6">
+                <label className="block">
+                  <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
+                    <span>문항 수</span>
+                    <span>{pronunciationQuestionCount}개</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max={PRONUNCIATION_SENTENCES.length}
+                    step="1"
+                    value={pronunciationQuestionCount}
+                    onChange={(e) => setPronunciationQuestionCount(Number(e.target.value))}
+                    className="w-full accent-indigo-700"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
+                    <span>문장당 제한 시간</span>
+                    <span>{pronunciationTimeLimit}초</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="3"
+                    max="20"
+                    step="1"
+                    value={pronunciationTimeLimit}
+                    onChange={(e) => setPronunciationTimeLimit(Number(e.target.value))}
+                    className="w-full accent-indigo-700"
+                  />
+                </label>
+              </div>
+
               <button
                 onClick={beginPronunciationRecording}
                 className="w-full rounded-2xl bg-indigo-800 py-4 text-lg font-black text-white shadow-lg hover:bg-indigo-900"
