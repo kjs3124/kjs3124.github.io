@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>음성 연습</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .fade-up {
+        animation: fadeUp 0.35s ease-out both;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useEffect, useMemo, useRef, useState } = React;
+
+      const PRONUNCIATION_SENTENCES = [
+        "경찰청 철창 철거 작업반은 철제 철망 점검 절차를 재정비하였다.",
+        "지금 동영이 얼굴이 안 보여서 선생님이 새로고침 해줄테니 수업방 다시 들어와보자!",
+        "방송국 발성 훈련 담당자는 발음 정확도 평가 기준을 강화하였다.",
+        "르네상스 시대 미켈란젤로는 조각과 벽화 분야에서 뛰어난 업적을 남겼다.",
+        "조선 후기 실학자들은 농업 생산력 향상 방안을 적극적으로 연구하였다.",
+        "칠흑 같은 새벽 골목길 돌계단 아래로 빗방울 소리가 번져갔다.",
+        "제2차 세계대전 종전 이후 냉전 체제가 빠르게 형성되기 시작하였다.",
+        "우리 친구들 선생님 얼굴 잘 보이고, 목소리 잘 들리면 동그라미 손해볼까요?",
+        "플라스틱 물병 뚜껑 분리 과정에서 미끄러짐 사고가 반복적으로 발생했다.",
+        "실크로드 교역 과정에서는 비단과 향료, 금속 공예품이 거래되었다."
+      ];
+
+      function shuffleSentences(sentences) {
+        const copied = [...sentences];
+
+        for (let i = copied.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copied[i], copied[j]] = [copied[j], copied[i]];
+        }
+
+        return copied;
+      }
+
+      const SPEED_TEXT = `우리 친구들~ 안녕! 한 주 동안 잘 지냈어요?
+선생님 목소리 들리고 얼굴 잘 보이면 동그라미 손 해볼까요?
+서린이 희민이 주원이 용현이 종훈이 만나서 너무 반가워!!
+오늘 우리 친구들 선생님 처음 보죠?
+우리 친구들과 오늘부터 함께 수업할 000 선생님이에요! 만나서 너무 반가워요~
+오늘도 사랑이 넘치는 5월이 되자는 의미로 "손하트" 해보자!
+오늘은 생각 읽기 책 <치카치카 치카 탐정- 까르르 마을의 아이들을 지켜라!>이야기를 보며
+대상간의 공통점과 차이점을 찾는 비교와 대조에 대해 알아보고,
+이 방법으로 새로운 놀이 기구를 생각해 발표를 해 볼 거예요.`;
+
+      const AVERAGE_SPEED_SECONDS = 65;
+      const PRONUNCIATION_TIME_LIMIT_SECONDS = 8;
+
+      function normalizeText(text) {
+        return (text || "")
+          .toLowerCase()
+          .replace(/[^\w가-힣\s]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function calculateSentenceAccuracy(expected, recognized) {
+        const e = normalizeText(expected);
+        const r = normalizeText(recognized);
+
+        if (!e || !r) return 0;
+        if (e === r) return 100;
+
+        const eWords = e.split(" ");
+        const rWords = r.split(" ");
+        let matched = 0;
+
+        eWords.forEach((word, idx) => {
+          if (rWords[idx] === word) matched += 1;
+        });
+
+        return Math.round((matched / eWords.length) * 100);
+      }
+
+      function formatResultTime(totalSeconds) {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, "0")}초 ${String(seconds).padStart(2, "0")}`;
+      }
+
+      function formatRunningTimer(totalCentiseconds) {
+        const minutes = Math.floor(totalCentiseconds / 6000);
+        const seconds = Math.floor((totalCentiseconds % 6000) / 100);
+        const centiseconds = totalCentiseconds % 100;
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}:${String(centiseconds).padStart(2, "0")}`;
+      }
+
+      function getSpeedResultText(speedSeconds) {
+        const diff = speedSeconds - AVERAGE_SPEED_SECONDS;
+
+        if (Math.abs(diff) <= 3) {
+          return {
+            title: "아주 적절하다!!",
+            description: "참여자의 평균속도와 거의 비슷하게 끝났어요."
+          };
+        }
+
+        if (diff < 0) {
+          return {
+            title: "조금 빠르다..!",
+            description: "참여자의 평균속도보다 빨리 끝났어요."
+          };
+        }
+
+        return {
+          title: "조금 느리다..!",
+          description: "참여자의 평균속도보다 느리게 끝났어요."
+        };
+      }
+
+      function runSelfTests() {
+        console.assert(formatRunningTimer(0) === "00:00:00", "timer 0 failed");
+        console.assert(formatRunningTimer(1) === "00:00:01", "timer 1 failed");
+        console.assert(formatRunningTimer(6150) === "01:01:50", "timer 6150 failed");
+        console.assert(formatResultTime(65) === "01초 05", "result time failed");
+        console.assert(calculateSentenceAccuracy("안녕 하세요", "안녕 하세요") === 100, "accuracy exact failed");
+        console.assert(getSpeedResultText(62).title === "아주 적절하다!!", "speed equal range failed");
+        console.assert(getSpeedResultText(50).title === "조금 빠르다..!", "speed fast failed");
+        console.assert(getSpeedResultText(80).title === "조금 느리다..!", "speed slow failed");
+      }
+
+      if (typeof window !== "undefined") {
+        runSelfTests();
+      }
+
+      function VoicePracticeSite() {
+        const [screen, setScreen] = useState("start");
+        const [name, setName] = useState("");
+        const [weeklyCount, setWeeklyCount] = useState("2회");
+
+        const [activePronunciationSentences, setActivePronunciationSentences] = useState(() =>
+          shuffleSentences(PRONUNCIATION_SENTENCES)
+        );
+        const [pronunciationIndex, setPronunciationIndex] = useState(0);
+        const [pronunciationTimeLeft, setPronunciationTimeLeft] = useState(PRONUNCIATION_TIME_LIMIT_SECONDS);
+        const [isPronunciationRecording, setIsPronunciationRecording] = useState(false);
+        const [showPronunciationDetail, setShowPronunciationDetail] = useState(false);
+        const [pronunciationResults, setPronunciationResults] = useState(
+          PRONUNCIATION_SENTENCES.map((sentence, index) => ({
+            index,
+            expected: sentence,
+            recognized: "",
+            accuracy: 0
+          }))
+        );
+
+        const [speedSeconds, setSpeedSeconds] = useState(0);
+        const [speedCentiseconds, setSpeedCentiseconds] = useState(0);
+        const [isSpeedRecording, setIsSpeedRecording] = useState(false);
+        const [speedRecognizedText, setSpeedRecognizedText] = useState("");
+        const [showSpeedDetail, setShowSpeedDetail] = useState(false);
+
+        const recognitionRef = useRef(null);
+        const pronunciationTimerRef = useRef(null);
+        const speedTimerRef = useRef(null);
+
+        const displayUserName = name.trim() ? `${name.trim()}님` : "사용자";
+        const menuTitle = `${displayUserName}의 연습`;
+
+        const overallPronunciationAccuracy = useMemo(() => {
+          if (!pronunciationResults.length) return 0;
+          const sum = pronunciationResults.reduce((acc, cur) => acc + (cur.accuracy || 0), 0);
+          return Math.round(sum / pronunciationResults.length);
+        }, [pronunciationResults]);
+
+        const speedResult = useMemo(() => getSpeedResultText(speedSeconds), [speedSeconds]);
+
+        const stopRecognition = () => {
+          if (recognitionRef.current) {
+            try {
+              recognitionRef.current.stop();
+            } catch (e) {
+              // 이미 중지된 경우 무시합니다.
+            }
+            recognitionRef.current = null;
+          }
+        };
+
+        const startRecognition = ({ mode }) => {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+          if (!SpeechRecognition) {
+            if (mode === "speed") {
+              setSpeedRecognizedText("이 브라우저에서는 음성 인식을 지원하지 않습니다.");
+            }
+            return true;
+          }
+
+          stopRecognition();
+
+          const recognition = new SpeechRecognition();
+          recognition.lang = "ko-KR";
+          recognition.continuous = true;
+          recognition.interimResults = true;
+
+          recognition.onresult = (event) => {
+            let transcript = "";
+            for (let i = 0; i < event.results.length; i += 1) {
+              transcript += `${event.results[i][0].transcript} `;
+            }
+
+            const finalText = transcript.trim();
+
+            if (mode === "pronunciation") {
+              setPronunciationResults((prev) =>
+                prev.map((item, idx) =>
+                  idx === pronunciationIndex
+                    ? {
+                        ...item,
+                        recognized: finalText,
+                        accuracy: calculateSentenceAccuracy(item.expected, finalText)
+                      }
+                    : item
+                )
+              );
+            }
+
+            if (mode === "speed") {
+              setSpeedRecognizedText(finalText);
+            }
+          };
+
+          recognition.onerror = () => {};
+          recognitionRef.current = recognition;
+          recognition.start();
+          return true;
+        };
+
+        const moveToNextPronunciationSentence = () => {
+          stopRecognition();
+
+          if (pronunciationIndex < activePronunciationSentences.length - 1) {
+            setPronunciationIndex((prev) => prev + 1);
+            setPronunciationTimeLeft(PRONUNCIATION_TIME_LIMIT_SECONDS);
+          } else {
+            setIsPronunciationRecording(false);
+            clearInterval(pronunciationTimerRef.current);
+            setScreen("pronunciation-result");
+          }
+        };
+
+        const beginPronunciationRecording = () => {
+          const shuffledSentences = shuffleSentences(PRONUNCIATION_SENTENCES);
+          setActivePronunciationSentences(shuffledSentences);
+          setPronunciationResults(
+            shuffledSentences.map((sentence, index) => ({
+              index,
+              expected: sentence,
+              recognized: "",
+              accuracy: 0
+            }))
+          );
+          setPronunciationIndex(0);
+          setPronunciationTimeLeft(PRONUNCIATION_TIME_LIMIT_SECONDS);
+          setShowPronunciationDetail(false);
+          setScreen("pronunciation-recording");
+          setIsPronunciationRecording(true);
+        };
+
+        const goToPracticeMenu = () => {
+          stopRecognition();
+          clearInterval(pronunciationTimerRef.current);
+          clearInterval(speedTimerRef.current);
+          setIsPronunciationRecording(false);
+          setIsSpeedRecording(false);
+          setScreen("menu");
+        };
+
+        const retryPronunciationPractice = () => {
+          stopRecognition();
+          clearInterval(pronunciationTimerRef.current);
+          beginPronunciationRecording();
+        };
+
+        const retrySpeedPractice = () => {
+          stopRecognition();
+          clearInterval(speedTimerRef.current);
+          setSpeedSeconds(0);
+          setSpeedCentiseconds(0);
+          setSpeedRecognizedText("");
+          setShowSpeedDetail(false);
+          setIsSpeedRecording(false);
+          setScreen("speed-practice");
+        };
+
+        const beginSpeedRecording = () => {
+          setSpeedSeconds(0);
+          setSpeedCentiseconds(0);
+          setSpeedRecognizedText("");
+          setShowSpeedDetail(false);
+
+          setIsSpeedRecording(true);
+
+          const started = startRecognition({ mode: "speed" });
+          if (!started) {
+            setIsSpeedRecording(false);
+          }
+        };
+
+        const endSpeedRecording = () => {
+          stopRecognition();
+          clearInterval(speedTimerRef.current);
+          setIsSpeedRecording(false);
+
+          setTimeout(() => {
+            setScreen("speed-result");
+          }, 1000);
+        };
+
+        useEffect(() => {
+          if (screen !== "pronunciation-recording" || !isPronunciationRecording) return undefined;
+
+          startRecognition({ mode: "pronunciation" });
+
+          pronunciationTimerRef.current = setInterval(() => {
+            setPronunciationTimeLeft((prev) => {
+              if (prev <= 1) {
+                setTimeout(() => {
+                  moveToNextPronunciationSentence();
+                }, 0);
+                return PRONUNCIATION_TIME_LIMIT_SECONDS;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+
+          return () => {
+            clearInterval(pronunciationTimerRef.current);
+            stopRecognition();
+          };
+        }, [screen, isPronunciationRecording, pronunciationIndex]);
+
+        useEffect(() => {
+          if (!isSpeedRecording) return undefined;
+
+          speedTimerRef.current = setInterval(() => {
+            setSpeedCentiseconds((prev) => {
+              const next = prev + 1;
+              setSpeedSeconds(Math.floor(next / 100));
+              return next;
+            });
+          }, 10);
+
+          return () => {
+            clearInterval(speedTimerRef.current);
+          };
+        }, [isSpeedRecording]);
+
+        const HomeButton = () => (
+          <button
+            onClick={goToPracticeMenu}
+            className="absolute left-6 top-6 text-sm font-bold text-red-500 hover:text-red-600"
+          >
+            ↩ 처음으로
+          </button>
+        );
+
+        const renderStartScreen = () => (
+          <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+            <section className="fade-up w-full max-w-md rounded-3xl bg-white p-8 shadow-xl border border-indigo-100">
+              <h1 className="text-5xl font-black text-center text-indigo-900 mb-10">음성 연습</h1>
+
+              <label className="block text-base font-bold text-gray-700 mb-3">이름을 입력하세요.</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="이름"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 mb-7"
+              />
+
+              <p className="text-base font-bold text-gray-700 mb-3">일주일에 연습할 횟수를 고르세요.</p>
+              <div className="grid grid-cols-3 gap-3 mb-9">
+                {["2회", "3회", "4회"].map((count) => (
+                  <button
+                    key={count}
+                    onClick={() => setWeeklyCount(count)}
+                    className={`rounded-2xl py-3 text-base font-bold border transition ${
+                      weeklyCount === count
+                        ? "bg-indigo-700 text-white border-indigo-700 shadow-md"
+                        : "bg-white text-gray-700 border-gray-300 hover:border-indigo-400"
+                    }`}
+                  >
+                    {count}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setScreen("menu")}
+                className="w-full rounded-2xl bg-indigo-800 py-4 text-lg font-black text-white shadow-lg hover:bg-indigo-900"
+              >
+                시작
+              </button>
+            </section>
+          </main>
+        );
+
+        const renderMenuScreen = () => (
+          <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+            <section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl border border-indigo-100">
+              <h2 className="text-3xl font-black text-center text-indigo-900 mb-2">{menuTitle}</h2>
+              <p className="text-center text-gray-500 mb-8">주 {weeklyCount} 연습</p>
+
+              <div className="grid gap-4">
+                <button
+                  onClick={() => setScreen("pronunciation-intro")}
+                  className="rounded-2xl bg-indigo-800 py-5 text-xl font-black text-white shadow-md hover:bg-indigo-900"
+                >
+                  발음 연습
+                </button>
+                <button
+                  onClick={() => setScreen("speed-intro")}
+                  className="rounded-2xl bg-emerald-600 py-5 text-xl font-black text-white shadow-md hover:bg-emerald-700"
+                >
+                  속도 연습
+                </button>
+              </div>
+            </section>
+          </main>
+        );
+
+        const renderPronunciationIntroScreen = () => (
+          <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+            <section className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl border border-indigo-100 relative">
+              <HomeButton />
+              <h2 className="text-3xl font-black text-center text-indigo-900 mb-6">발음 연습</h2>
+              <div className="rounded-2xl border border-gray-200 bg-white p-6 mb-8 text-gray-700 leading-8">
+                <p>10개의 문장을 읽으면 ai가 음성을 인식하며 발음을 확인합니다.</p>
+                <p>문장 당 8초의 시간제한이 있으며 시간이 끝나면 다음 문장으로 넘어갑니다.</p>
+                <p>10개 문장이 끝나면 인식된 문장과 인식율이 나옵니다.</p>
+                <p>시작 버튼을 누르면 녹음이 시작됩니다.</p>
+              </div>
+              <button
+                onClick={beginPronunciationRecording}
+                className="w-full rounded-2xl bg-indigo-800 py-4 text-lg font-black text-white shadow-lg hover:bg-indigo-900"
+              >
+                시작
+              </button>
+            </section>
+          </main>
+        );
+
+        const renderPronunciationRecordingScreen = () => (
+          <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+            <section className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl border border-indigo-100 relative">
+              <HomeButton />
+              <div className="text-6xl font-black text-center text-indigo-900 mb-2">{pronunciationTimeLeft}</div>
+              <div className="text-center text-gray-500 mb-8">
+                {pronunciationIndex + 1} / {activePronunciationSentences.length}
+              </div>
+              <div className="rounded-3xl bg-indigo-50 p-8 text-center">
+                <div className="text-sm font-bold text-gray-500 mb-3">연습용 문장</div>
+                <div className="text-2xl font-black text-gray-900 leading-relaxed">
+                  {activePronunciationSentences[pronunciationIndex]}
+                </div>
+              </div>
+              <p className="mt-6 text-center font-bold text-red-500">녹음이 진행 중입니다...</p>
+            </section>
+          </main>
+        );
+
+        const renderPronunciationResultScreen = () => (
+          <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+            <section className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-xl border border-indigo-100 relative">
+              <HomeButton />
+              <div className="text-center text-xl font-bold text-gray-600 mb-4">당신의 발음은..?</div>
+              <div className="text-center text-7xl font-black text-blue-950 mb-4">{overallPronunciationAccuracy}%</div>
+              <div className="text-center text-lg font-bold text-gray-600 mb-8">
+                {overallPronunciationAccuracy}%가 인식되었습니다!
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  onClick={retryPronunciationPractice}
+                  className="rounded-2xl bg-purple-600 py-4 text-lg font-black text-white shadow-lg hover:bg-purple-700"
+                >
+                  재도전
+                </button>
+                <button
+                  onClick={() => setShowPronunciationDetail((prev) => !prev)}
+                  className="rounded-2xl bg-indigo-800 py-4 text-lg font-black text-white shadow-lg hover:bg-indigo-900"
+                >
+                  내 녹음 확인하기
+                </button>
+              </div>
+
+              {showPronunciationDetail && (
+                <div className="mt-8 grid gap-4">
+                  {pronunciationResults.map((item, idx) => (
+                    <div key={item.index} className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                      <div className="font-black text-indigo-900 mb-3">문장 {idx + 1}</div>
+                      <p className="text-sm leading-7">
+                        <b>녹음한 내용:</b> {item.expected}
+                      </p>
+                      <p className="text-sm leading-7">
+                        <b>ai가 음성인식해서 입력된 문장내용:</b> {item.recognized || "인식된 내용이 없습니다."}
+                      </p>
+                      <p className="text-sm leading-7">
+                        <b>인식률:</b> {item.accuracy}%
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </main>
+        );
+
+        const renderSpeedIntroScreen = () => (
+          <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-indigo-50 p-6">
+            <section className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl border border-emerald-100 relative">
+              <HomeButton />
+              <h2 className="text-3xl font-black text-center text-emerald-800 mb-6">진행 방법</h2>
+              <div className="rounded-2xl border border-gray-200 bg-white p-6 mb-8 text-gray-700 leading-8">
+                <p>문장을 읽으면 ai가 음성을 인식하고, 입력합니다.</p>
+                <p>시작 버튼을 누르면 녹음과 타이머가 시작됩니다.</p>
+                <p>문장을 다 읽은 뒤, 종료버튼을 누르면 연습이 끝납니다.</p>
+                <p>적절한 속도를 유지하며 읽어봅시다.</p>
+              </div>
+              <button
+                onClick={() => setScreen("speed-practice")}
+                className="w-full rounded-2xl bg-emerald-600 py-4 text-lg font-black text-white shadow-lg hover:bg-emerald-700"
+              >
+                연습하기
+              </button>
+            </section>
+          </main>
+        );
+
+        const renderSpeedPracticeScreen = () => (
+          <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-indigo-50 p-6">
+            <section className="mx-auto w-full max-w-4xl rounded-3xl bg-white p-8 shadow-xl border border-emerald-100 relative">
+              <div className="absolute right-8 top-8 rounded-full bg-emerald-100 px-5 py-2 text-lg font-black text-emerald-900">
+                {formatRunningTimer(speedCentiseconds)}
+              </div>
+
+              <h2 className="text-3xl font-black text-emerald-800 mb-8">속도 연습</h2>
+
+              <div className="rounded-3xl border border-gray-200 bg-white p-7 text-xl font-bold leading-10 text-gray-900 whitespace-pre-line shadow-sm">
+                {SPEED_TEXT}
+              </div>
+
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <button
+                  onClick={beginSpeedRecording}
+                  disabled={isSpeedRecording}
+                  className={`rounded-2xl py-4 text-lg font-black text-white shadow-lg ${
+                    isSpeedRecording ? "bg-gray-400 cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}
+                >
+                  시작하기
+                </button>
+                <button
+                  onClick={endSpeedRecording}
+                  disabled={!isSpeedRecording}
+                  className={`rounded-2xl py-4 text-lg font-black text-white shadow-lg ${
+                    !isSpeedRecording ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 hover:bg-red-600"
+                  }`}
+                >
+                  종료하기
+                </button>
+              </div>
+            </section>
+          </main>
+        );
+
+        const renderSpeedResultScreen = () => (
+          <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-indigo-50 p-6">
+            <section className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-xl border border-emerald-100 relative">
+              <HomeButton />
+              <div className="text-center text-xl font-bold text-gray-600 mb-4">당신의 속도는 평균보다....?</div>
+              <div className="text-center text-5xl font-black text-emerald-700 mb-4">{speedResult.title}</div>
+              <div className="text-center text-4xl font-black text-blue-950 mb-4">{formatResultTime(speedSeconds)}</div>
+              <div className="text-center text-base font-bold text-gray-600 mb-8">{speedResult.description}</div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  onClick={retrySpeedPractice}
+                  className="rounded-2xl bg-purple-600 py-4 text-lg font-black text-white shadow-lg hover:bg-purple-700"
+                >
+                  재도전
+                </button>
+                <button
+                  onClick={() => setShowSpeedDetail((prev) => !prev)}
+                  className="rounded-2xl bg-emerald-600 py-4 text-lg font-black text-white shadow-lg hover:bg-emerald-700"
+                >
+                  내 녹음 확인하기
+                </button>
+              </div>
+
+              {showSpeedDetail && (
+                <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                  <p className="text-sm leading-7 mb-4">
+                    <b>녹음한 내용:</b>
+                  </p>
+                  <p className="text-sm leading-7 whitespace-pre-line mb-5">{SPEED_TEXT}</p>
+                  <p className="text-sm leading-7 mb-4">
+                    <b>ai가 음성인식해서 입력된 문장내용:</b>
+                  </p>
+                  <p className="text-sm leading-7 whitespace-pre-line">
+                    {speedRecognizedText || "인식된 내용이 없습니다."}
+                  </p>
+                </div>
+              )}
+            </section>
+          </main>
+        );
+
+        if (screen === "start") return renderStartScreen();
+        if (screen === "menu") return renderMenuScreen();
+        if (screen === "pronunciation-intro") return renderPronunciationIntroScreen();
+        if (screen === "pronunciation-recording") return renderPronunciationRecordingScreen();
+        if (screen === "pronunciation-result") return renderPronunciationResultScreen();
+        if (screen === "speed-intro") return renderSpeedIntroScreen();
+        if (screen === "speed-practice") return renderSpeedPracticeScreen();
+        if (screen === "speed-result") return renderSpeedResultScreen();
+
+        return null;
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<VoicePracticeSite />);
+    </script>
+  </body>
+</html>
