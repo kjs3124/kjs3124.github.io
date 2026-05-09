@@ -22,17 +22,28 @@
         animation: fadeUp 0.35s ease-out both;
       }
 
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         min-height: 100vh;
+        margin: 0;
+        color: #0f172a;
         background:
-          radial-gradient(circle at top left, rgba(99, 102, 241, 0.18), transparent 32rem),
-          radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.16), transparent 30rem),
-          #f8fafc;
+          linear-gradient(120deg, rgba(37, 99, 235, 0.08), transparent 28%),
+          linear-gradient(300deg, rgba(20, 184, 166, 0.1), transparent 30%),
+          #eef4fb;
+      }
+
+      button,
+      input {
+        font: inherit;
       }
 
       .app-shell {
         min-height: 100vh;
-        padding: 24px;
+        padding: 28px;
       }
 
       .center-shell {
@@ -41,36 +52,104 @@
         justify-content: center;
       }
 
-      .app-panel {
-        border: 1px solid rgba(226, 232, 240, 0.9);
-        background: rgba(255, 255, 255, 0.94);
-        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.1);
-        backdrop-filter: blur(12px);
+      .workspace {
+        width: min(1120px, 100%);
+        min-height: min(760px, calc(100vh - 56px));
+        display: grid;
+        grid-template-columns: minmax(280px, 0.8fr) minmax(360px, 1.2fr);
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 28px;
+        background: #ffffff;
+        box-shadow: 0 28px 90px rgba(15, 23, 42, 0.14);
       }
 
-      .primary-action {
-        background: linear-gradient(135deg, #4338ca, #2563eb);
-        color: white;
-        box-shadow: 0 12px 24px rgba(67, 56, 202, 0.22);
+      .workspace-side {
+        display: flex;
+        min-height: 100%;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 40px;
+        color: #ffffff;
+        background:
+          linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(30, 64, 175, 0.94)),
+          #0f172a;
       }
 
-      .primary-action:hover {
-        filter: brightness(0.96);
+      .workspace-main {
+        padding: 44px;
+        background: #f8fafc;
       }
 
-      .success-action {
-        background: linear-gradient(135deg, #059669, #0d9488);
-        color: white;
-        box-shadow: 0 12px 24px rgba(5, 150, 105, 0.2);
+      .compact-panel {
+        width: min(760px, 100%);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 28px;
+        background: #ffffff;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
       }
 
-      .success-action:hover {
-        filter: brightness(0.96);
+      .wide-panel {
+        width: min(1120px, 100%);
       }
 
-      .soft-card {
-        border: 1px solid #e5e7eb;
-        background: linear-gradient(180deg, #ffffff, #f9fafb);
+      .surface {
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: #ffffff;
+      }
+
+      .quiet-surface {
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: #f8fafc;
+      }
+
+      .btn {
+        min-height: 56px;
+        border-radius: 18px;
+        font-weight: 900;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      }
+
+      .btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+
+      .btn-primary {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 14px 28px rgba(37, 99, 235, 0.24);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        background: #1d4ed8;
+      }
+
+      .btn-teal {
+        background: #0f766e;
+        color: #ffffff;
+        box-shadow: 0 14px 28px rgba(15, 118, 110, 0.22);
+      }
+
+      .btn-teal:hover:not(:disabled) {
+        background: #115e59;
+      }
+
+      .btn-dark {
+        background: #0f172a;
+        color: #ffffff;
+      }
+
+      .btn-danger {
+        background: #dc2626;
+        color: #ffffff;
+      }
+
+      .btn-muted {
+        background: #cbd5e1;
+        color: #475569;
+        cursor: not-allowed;
       }
 
       .range-input {
@@ -78,9 +157,50 @@
         cursor: pointer;
       }
 
-      @media (max-width: 640px) {
+      .top-button {
+        position: absolute;
+        left: 24px;
+        top: 24px;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        background: #ffffff;
+        padding: 10px 16px;
+        color: #475569;
+        font-size: 14px;
+        font-weight: 900;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      }
+
+      .top-button:hover {
+        color: #2563eb;
+      }
+
+      @media (max-width: 860px) {
         .app-shell {
           padding: 16px;
+        }
+
+        .workspace {
+          min-height: auto;
+          grid-template-columns: 1fr;
+        }
+
+        .workspace-side,
+        .workspace-main {
+          padding: 28px;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .workspace-side,
+        .workspace-main,
+        .compact-panel {
+          padding: 22px;
+        }
+
+        .top-button {
+          left: 16px;
+          top: 16px;
         }
       }
     </style>
@@ -541,7 +661,7 @@
         const HomeButton = () => (
           <button
             onClick={goToPracticeMenu}
-            className="absolute left-6 top-6 rounded-full bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-indigo-700"
+            className="top-button"
           >
             ↩ 처음으로
           </button>
@@ -549,74 +669,102 @@
 
         const renderStartScreen = () => (
           <main className="app-shell center-shell">
-            <section className="fade-up app-panel w-full max-w-md rounded-[2rem] p-8">
-              <div className="mb-8 text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-2xl font-black text-indigo-800">
-                  말
+            <section className="workspace fade-up">
+              <aside className="workspace-side">
+                <div>
+                  <div className="mb-8 inline-flex rounded-full border border-white/20 px-4 py-2 text-sm font-black text-blue-100">
+                    Voice Practice
+                  </div>
+                  <h1 className="text-6xl font-black leading-tight tracking-normal">음성 연습</h1>
+                  <p className="mt-5 max-w-sm text-base font-bold leading-7 text-blue-100">
+                    발음 정확도와 읽기 속도를 한 번에 확인하는 수업용 연습 도구입니다.
+                  </p>
                 </div>
-                <h1 className="text-5xl font-black text-slate-950">음성 연습</h1>
-                <p className="mt-3 text-sm font-bold text-slate-500">발음과 읽기 속도를 차분하게 확인해요.</p>
-              </div>
 
-              <label className="block text-base font-bold text-gray-700 mb-3">이름을 입력하세요.</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="이름"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-bold outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100 mb-7"
-              />
+                <div className="grid gap-3 text-sm font-bold text-blue-100">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">발음 연습 문항 수 조절</div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">문장당 제한 시간 설정</div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">참여 기록 자동 저장</div>
+                </div>
+              </aside>
 
-              <p className="text-base font-bold text-gray-700 mb-3">일주일에 연습할 횟수를 고르세요.</p>
-              <div className="grid grid-cols-3 gap-3 mb-9">
-                {["2회", "3회", "4회"].map((count) => (
+              <div className="workspace-main flex items-center">
+                <div className="w-full">
+                  <div className="mb-8">
+                    <p className="text-sm font-black uppercase text-blue-600">Start</p>
+                    <h2 className="mt-2 text-3xl font-black text-slate-950">연습 정보를 입력하세요</h2>
+                  </div>
+
+                  <label className="block text-base font-black text-slate-700 mb-3">이름</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="이름을 입력하세요"
+                    className="mb-8 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-lg font-bold outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                  />
+
+                  <p className="text-base font-black text-slate-700 mb-3">일주일에 연습할 횟수</p>
+                  <div className="mb-10 grid grid-cols-3 gap-3">
+                    {["2회", "3회", "4회"].map((count) => (
+                      <button
+                        key={count}
+                        onClick={() => setWeeklyCount(count)}
+                        className={`btn border text-base ${
+                          weeklyCount === count
+                            ? "border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                            : "border-slate-300 bg-white text-slate-700 hover:border-blue-400"
+                        }`}
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+
                   <button
-                    key={count}
-                    onClick={() => setWeeklyCount(count)}
-                    className={`rounded-2xl py-3 text-base font-bold border transition ${
-                      weeklyCount === count
-                        ? "bg-indigo-700 text-white border-indigo-700 shadow-md"
-                        : "bg-white text-gray-700 border-gray-300 hover:border-indigo-400"
-                    }`}
+                    onClick={() => setScreen("menu")}
+                    className="btn btn-primary w-full text-lg"
                   >
-                    {count}
+                    시작
                   </button>
-                ))}
+                </div>
               </div>
-
-              <button
-                onClick={() => setScreen("menu")}
-                className="primary-action w-full rounded-2xl py-4 text-lg font-black"
-              >
-                시작
-              </button>
             </section>
           </main>
         );
 
         const renderMenuScreen = () => (
           <main className="app-shell center-shell">
-            <section className="app-panel w-full max-w-lg rounded-[2rem] p-8">
-              <h2 className="text-3xl font-black text-center text-slate-950 mb-2">{menuTitle}</h2>
-              <p className="text-center text-sm font-bold text-slate-500 mb-8">주 {weeklyCount} 연습</p>
+            <section className="compact-panel p-8">
+              <div className="mb-8 flex flex-col gap-2 border-b border-slate-200 pb-6">
+                <p className="text-sm font-black uppercase text-blue-600">Practice Menu</p>
+                <h2 className="text-4xl font-black text-slate-950">{menuTitle}</h2>
+                <p className="text-sm font-bold text-slate-500">주 {weeklyCount} 연습</p>
+              </div>
 
-              <div className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <button
                   onClick={() => setScreen("pronunciation-intro")}
-                  className="primary-action rounded-2xl px-6 py-5 text-left text-xl font-black"
+                  className="surface p-6 text-left hover:border-blue-500 hover:shadow-xl hover:shadow-blue-100"
                 >
-                  발음 연습
+                  <div className="mb-8 text-sm font-black text-blue-600">01</div>
+                  <div className="text-2xl font-black text-slate-950">발음 연습</div>
+                  <p className="mt-3 text-sm font-bold leading-6 text-slate-500">문장을 읽고 인식률을 확인합니다.</p>
                 </button>
                 <button
                   onClick={() => setScreen("speed-intro")}
-                  className="success-action rounded-2xl px-6 py-5 text-left text-xl font-black"
+                  className="surface p-6 text-left hover:border-teal-600 hover:shadow-xl hover:shadow-teal-100"
                 >
-                  속도 연습
+                  <div className="mb-8 text-sm font-black text-teal-700">02</div>
+                  <div className="text-2xl font-black text-slate-950">속도 연습</div>
+                  <p className="mt-3 text-sm font-bold leading-6 text-slate-500">읽는 시간을 평균 기준과 비교합니다.</p>
                 </button>
                 <button
                   onClick={() => setScreen("admin")}
-                  className="rounded-2xl border border-slate-200 bg-slate-900 px-6 py-4 text-left text-base font-black text-white shadow-md hover:bg-black"
+                  className="surface p-6 text-left hover:border-slate-900 sm:col-span-2"
                 >
-                  관리자
+                  <div className="mb-5 text-sm font-black text-slate-500">ADMIN</div>
+                  <div className="text-xl font-black text-slate-950">참여 기록 관리</div>
+                  <p className="mt-2 text-sm font-bold leading-6 text-slate-500">관리자 코드로 이름, 참여횟수, 참여일자를 조회합니다.</p>
                 </button>
               </div>
             </section>
@@ -625,11 +773,12 @@
 
         const renderAdminScreen = () => (
           <main className="app-shell">
-            <section className="app-panel relative mx-auto w-full max-w-5xl rounded-[2rem] p-8">
+            <section className="compact-panel wide-panel relative mx-auto p-8">
               <HomeButton />
-              <div className="mb-8 pt-8 text-center sm:pt-0">
-                <h2 className="text-3xl font-black text-slate-950">관리자 페이지</h2>
-                <p className="mt-2 text-sm font-bold text-slate-500">참여자별 누적 기록을 확인합니다.</p>
+              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
+                <p className="text-sm font-black uppercase text-slate-500">Admin</p>
+                <h2 className="mt-2 text-4xl font-black text-slate-950">관리자 페이지</h2>
+                <p className="mt-3 text-sm font-bold text-slate-500">참여자별 누적 기록을 확인합니다.</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -654,7 +803,7 @@
 
               {adminMessage && <p className="mt-4 text-center text-sm font-bold text-gray-600">{adminMessage}</p>}
 
-              <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+              <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="min-w-[680px]">
                   <div className="grid grid-cols-[1fr_110px_2fr] bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
                     <div>이름</div>
@@ -688,18 +837,18 @@
 
         const renderPronunciationIntroScreen = () => (
           <main className="app-shell center-shell">
-            <section className="app-panel relative w-full max-w-xl rounded-[2rem] p-8">
+            <section className="compact-panel relative max-w-3xl p-8">
               <HomeButton />
-              <h2 className="pt-8 text-center text-3xl font-black text-slate-950 mb-6 sm:pt-0">발음 연습</h2>
-              <div className="soft-card rounded-2xl p-6 mb-8 text-slate-700 leading-8">
-                <p>{pronunciationQuestionCount}개의 문장을 읽으면 ai가 음성을 인식하며 발음을 확인합니다.</p>
-                <p>문장 당 {pronunciationTimeLimit}초의 시간제한이 있으며 시간이 끝나면 다음 문장으로 넘어갑니다.</p>
-                <p>선택한 문장이 끝나면 인식된 문장과 인식율이 나옵니다.</p>
-                <p>시작 버튼을 누르면 녹음이 시작됩니다.</p>
+              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
+                <p className="text-sm font-black uppercase text-blue-600">Pronunciation</p>
+                <h2 className="mt-2 text-4xl font-black text-slate-950">발음 연습 설정</h2>
+                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
+                  {pronunciationQuestionCount}개 문장을 문장당 {pronunciationTimeLimit}초 안에 읽습니다.
+                </p>
               </div>
 
-              <div className="mb-8 grid gap-6">
-                <label className="block">
+              <div className="mb-8 grid gap-5">
+                <label className="quiet-surface block p-5">
                   <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
                     <span>문항 수</span>
                     <span>{pronunciationQuestionCount}개</span>
@@ -715,7 +864,7 @@
                   />
                 </label>
 
-                <label className="block">
+                <label className="quiet-surface block p-5">
                   <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
                     <span>문장당 제한 시간</span>
                     <span>{pronunciationTimeLimit}초</span>
@@ -734,7 +883,7 @@
 
               <button
                 onClick={beginPronunciationRecording}
-                className="primary-action w-full rounded-2xl py-4 text-lg font-black"
+                className="btn btn-primary w-full text-lg"
               >
                 시작
               </button>
@@ -744,18 +893,21 @@
 
         const renderPronunciationRecordingScreen = () => (
           <main className="app-shell center-shell">
-            <section className="app-panel relative w-full max-w-2xl rounded-[2rem] p-8">
+            <section className="compact-panel wide-panel relative p-8">
               <HomeButton />
-              <div className="mx-auto mb-3 flex h-24 w-24 items-center justify-center rounded-full bg-indigo-100 text-6xl font-black text-indigo-900">
-                {pronunciationTimeLeft}
-              </div>
-              <div className="text-center text-sm font-black text-slate-500 mb-8">
-                {pronunciationIndex + 1} / {activePronunciationSentences.length}
-              </div>
-              <div className="rounded-[1.75rem] bg-indigo-50 p-8 text-center ring-1 ring-indigo-100">
-                <div className="text-sm font-bold text-gray-500 mb-3">연습용 문장</div>
-                <div className="text-2xl font-black text-gray-900 leading-relaxed">
-                  {activePronunciationSentences[pronunciationIndex]}
+              <div className="grid gap-6 pt-10 sm:grid-cols-[160px_1fr] sm:pt-0">
+                <div className="flex flex-col items-center justify-center rounded-3xl bg-blue-600 p-6 text-white">
+                  <div className="text-sm font-black text-blue-100">남은 시간</div>
+                  <div className="mt-2 text-7xl font-black">{pronunciationTimeLeft}</div>
+                  <div className="mt-2 text-sm font-black text-blue-100">
+                    {pronunciationIndex + 1} / {activePronunciationSentences.length}
+                  </div>
+                </div>
+                <div className="surface flex min-h-[260px] flex-col justify-center p-8 text-center">
+                  <div className="mb-4 text-sm font-black uppercase text-blue-600">Sentence</div>
+                  <div className="text-3xl font-black leading-relaxed text-slate-950">
+                    {activePronunciationSentences[pronunciationIndex]}
+                  </div>
                 </div>
               </div>
               <p className="mt-6 text-center font-bold text-red-500">
@@ -767,25 +919,27 @@
 
         const renderPronunciationResultScreen = () => (
           <main className="app-shell center-shell">
-            <section className="app-panel relative w-full max-w-2xl rounded-[2rem] p-8">
+            <section className="compact-panel relative max-w-3xl p-8">
               <HomeButton />
-              <div className="pt-8 text-center text-xl font-bold text-slate-500 mb-4 sm:pt-0">당신의 발음은..?</div>
-              <div className="text-center text-7xl font-black text-indigo-950 mb-4">{overallPronunciationAccuracy}%</div>
-              <div className="text-center text-lg font-bold text-gray-600 mb-8">
-                {overallPronunciationAccuracy}%가 인식되었습니다!
+              <div className="pt-10 text-center sm:pt-0">
+                <p className="text-sm font-black uppercase text-blue-600">Result</p>
+                <div className="mt-4 text-8xl font-black text-slate-950">{overallPronunciationAccuracy}%</div>
+                <div className="mt-3 text-lg font-bold text-slate-500">
+                  {overallPronunciationAccuracy}%가 인식되었습니다.
+                </div>
               </div>
               {recordMessage && <p className="mb-6 text-center text-sm font-bold text-gray-500">{recordMessage}</p>}
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   onClick={retryPronunciationPractice}
-                  className="rounded-2xl bg-violet-600 py-4 text-lg font-black text-white shadow-lg hover:bg-violet-700"
+                  className="btn btn-dark text-lg"
                 >
                   재도전
                 </button>
                 <button
                   onClick={() => setShowPronunciationDetail((prev) => !prev)}
-                  className="primary-action rounded-2xl py-4 text-lg font-black"
+                  className="btn btn-primary text-lg"
                 >
                   내 녹음 확인하기
                 </button>
@@ -794,15 +948,15 @@
               {showPronunciationDetail && (
                 <div className="mt-8 grid gap-4">
                   {pronunciationResults.map((item, idx) => (
-                    <div key={item.index} className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                      <div className="font-black text-indigo-900 mb-3">문장 {idx + 1}</div>
-                      <p className="text-sm leading-7">
+                    <div key={item.index} className="quiet-surface p-5">
+                      <div className="font-black text-blue-700 mb-3">문장 {idx + 1}</div>
+                      <p className="text-sm leading-7 text-slate-700">
                         <b>녹음한 내용:</b> {item.expected}
                       </p>
-                      <p className="text-sm leading-7">
+                      <p className="text-sm leading-7 text-slate-700">
                         <b>ai가 음성인식해서 입력된 문장내용:</b> {item.recognized || "인식된 내용이 없습니다."}
                       </p>
-                      <p className="text-sm leading-7">
+                      <p className="text-sm leading-7 text-slate-700">
                         <b>인식률:</b> {item.accuracy}%
                       </p>
                     </div>
@@ -815,18 +969,32 @@
 
         const renderSpeedIntroScreen = () => (
           <main className="app-shell center-shell">
-            <section className="app-panel relative w-full max-w-xl rounded-[2rem] p-8">
+            <section className="compact-panel relative max-w-3xl p-8">
               <HomeButton />
-              <h2 className="pt-8 text-center text-3xl font-black text-emerald-800 mb-6 sm:pt-0">진행 방법</h2>
-              <div className="soft-card rounded-2xl p-6 mb-8 text-slate-700 leading-8">
-                <p>문장을 읽으면 ai가 음성을 인식하고, 입력합니다.</p>
-                <p>시작 버튼을 누르면 녹음과 타이머가 시작됩니다.</p>
-                <p>문장을 다 읽은 뒤, 종료버튼을 누르면 연습이 끝납니다.</p>
-                <p>적절한 속도를 유지하며 읽어봅시다.</p>
+              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
+                <p className="text-sm font-black uppercase text-teal-700">Speed</p>
+                <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
+                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
+                  문장을 모두 읽은 뒤 종료하면 평균 속도와 비교합니다.
+                </p>
+              </div>
+              <div className="mb-8 grid gap-4 sm:grid-cols-3">
+                <div className="quiet-surface p-5">
+                  <div className="text-sm font-black text-teal-700">01</div>
+                  <p className="mt-3 text-sm font-bold text-slate-600">시작 버튼을 누릅니다.</p>
+                </div>
+                <div className="quiet-surface p-5">
+                  <div className="text-sm font-black text-teal-700">02</div>
+                  <p className="mt-3 text-sm font-bold text-slate-600">문장을 소리 내어 읽습니다.</p>
+                </div>
+                <div className="quiet-surface p-5">
+                  <div className="text-sm font-black text-teal-700">03</div>
+                  <p className="mt-3 text-sm font-bold text-slate-600">종료 버튼으로 결과를 봅니다.</p>
+                </div>
               </div>
               <button
                 onClick={() => setScreen("speed-practice")}
-                className="success-action w-full rounded-2xl py-4 text-lg font-black"
+                className="btn btn-teal w-full text-lg"
               >
                 연습하기
               </button>
@@ -836,14 +1004,18 @@
 
         const renderSpeedPracticeScreen = () => (
           <main className="app-shell">
-            <section className="app-panel relative mx-auto w-full max-w-4xl rounded-[2rem] p-8">
-              <div className="absolute right-8 top-8 rounded-full bg-emerald-100 px-5 py-2 text-lg font-black text-emerald-900 shadow-sm ring-1 ring-emerald-200">
-                {formatRunningTimer(speedCentiseconds)}
+            <section className="compact-panel wide-panel relative mx-auto p-8">
+              <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-black uppercase text-teal-700">Speed Practice</p>
+                  <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
+                </div>
+                <div className="rounded-2xl bg-slate-950 px-5 py-3 text-2xl font-black text-white">
+                  {formatRunningTimer(speedCentiseconds)}
+                </div>
               </div>
 
-              <h2 className="text-3xl font-black text-emerald-800 mb-8">속도 연습</h2>
-
-              <div className="soft-card rounded-[1.75rem] p-7 text-xl font-bold leading-10 text-slate-900 whitespace-pre-line shadow-sm">
+              <div className="surface p-8 text-xl font-bold leading-10 text-slate-900 whitespace-pre-line">
                 {SPEED_TEXT}
               </div>
 
@@ -855,8 +1027,8 @@
                 <button
                   onClick={beginSpeedRecording}
                   disabled={isSpeedRecording}
-                  className={`rounded-2xl py-4 text-lg font-black text-white shadow-lg ${
-                    isSpeedRecording ? "bg-gray-400 cursor-not-allowed" : "success-action"
+                  className={`btn text-lg ${
+                    isSpeedRecording ? "btn-muted" : "btn-teal"
                   }`}
                 >
                   시작하기
@@ -864,8 +1036,8 @@
                 <button
                   onClick={endSpeedRecording}
                   disabled={!isSpeedRecording}
-                  className={`rounded-2xl py-4 text-lg font-black text-white shadow-lg ${
-                    !isSpeedRecording ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 hover:bg-red-600"
+                  className={`btn text-lg ${
+                    !isSpeedRecording ? "btn-muted" : "btn-danger"
                   }`}
                 >
                   종료하기
@@ -877,39 +1049,41 @@
 
         const renderSpeedResultScreen = () => (
           <main className="app-shell center-shell">
-            <section className="app-panel relative w-full max-w-2xl rounded-[2rem] p-8">
+            <section className="compact-panel relative max-w-3xl p-8">
               <HomeButton />
-              <div className="pt-8 text-center text-xl font-bold text-slate-500 mb-4 sm:pt-0">당신의 속도는 평균보다....?</div>
-              <div className="text-center text-5xl font-black text-emerald-700 mb-4">{speedResult.title}</div>
-              <div className="text-center text-4xl font-black text-blue-950 mb-4">{formatResultTime(speedSeconds)}</div>
-              <div className="text-center text-base font-bold text-gray-600 mb-8">{speedResult.description}</div>
+              <div className="pt-10 text-center sm:pt-0">
+                <p className="text-sm font-black uppercase text-teal-700">Result</p>
+                <div className="mt-4 text-5xl font-black text-slate-950">{speedResult.title}</div>
+                <div className="mt-4 text-4xl font-black text-teal-700">{formatResultTime(speedSeconds)}</div>
+                <div className="mt-3 text-base font-bold text-slate-500">{speedResult.description}</div>
+              </div>
               {recordMessage && <p className="mb-6 text-center text-sm font-bold text-gray-500">{recordMessage}</p>}
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   onClick={retrySpeedPractice}
-                  className="rounded-2xl bg-purple-600 py-4 text-lg font-black text-white shadow-lg hover:bg-purple-700"
+                  className="btn btn-dark text-lg"
                 >
                   재도전
                 </button>
                 <button
                   onClick={() => setShowSpeedDetail((prev) => !prev)}
-                  className="success-action rounded-2xl py-4 text-lg font-black"
+                  className="btn btn-teal text-lg"
                 >
                   내 녹음 확인하기
                 </button>
               </div>
 
               {showSpeedDetail && (
-                <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                  <p className="text-sm leading-7 mb-4">
+                <div className="quiet-surface mt-8 p-5">
+                  <p className="text-sm leading-7 mb-4 text-slate-700">
                     <b>녹음한 내용:</b>
                   </p>
-                  <p className="text-sm leading-7 whitespace-pre-line mb-5">{SPEED_TEXT}</p>
-                  <p className="text-sm leading-7 mb-4">
+                  <p className="text-sm leading-7 whitespace-pre-line mb-5 text-slate-700">{SPEED_TEXT}</p>
+                  <p className="text-sm leading-7 mb-4 text-slate-700">
                     <b>ai가 음성인식해서 입력된 문장내용:</b>
                   </p>
-                  <p className="text-sm leading-7 whitespace-pre-line">
+                  <p className="text-sm leading-7 whitespace-pre-line text-slate-700">
                     {speedRecognizedText || "인식된 내용이 없습니다."}
                   </p>
                 </div>
