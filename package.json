@@ -1,0 +1,12 @@
+{
+  "name": "voice-practice",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"No build needed\""
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.0.0"
+  }
+}

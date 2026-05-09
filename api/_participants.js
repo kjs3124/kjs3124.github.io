@@ -1,0 +1,102 @@
+import { get, list, put } from "@vercel/blob";
+
+const PARTICIPANTS_PREFIX = "participants/";
+
+export function jsonResponse(data, status = 200) {
+  return Response.json(data, {
+    status,
+    headers: {
+      "Cache-Control": "no-store"
+    }
+  });
+}
+
+export async function readJsonBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    return {};
+  }
+}
+
+export function getAdminCodes() {
+  return (process.env.ADMIN_CODES || "")
+    .split(",")
+    .map((code) => code.trim())
+    .filter(Boolean);
+}
+
+export function hasBlobToken() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+export function getParticipantPath(name) {
+  const encodedName = encodeURIComponent(normalizeName(name));
+  return `${PARTICIPANTS_PREFIX}${encodedName}.json`;
+}
+
+export async function readParticipant(name) {
+  try {
+    const blob = await get(getParticipantPath(name), { access: "private" });
+    if (!blob || blob.statusCode !== 200 || !blob.stream) return null;
+
+    const text = await new Response(blob.stream).text();
+    const data = JSON.parse(text);
+    return normalizeParticipant(data);
+  } catch {
+    return null;
+  }
+}
+
+export async function writeParticipant(participant) {
+  const normalized = normalizeParticipant(participant);
+  await put(getParticipantPath(normalized.name), JSON.stringify(normalized, null, 2), {
+    access: "private",
+    contentType: "application/json",
+    overwrite: true
+  });
+}
+
+export async function listParticipants() {
+  const result = await list({
+    prefix: PARTICIPANTS_PREFIX,
+    limit: 1000
+  });
+
+  const blobs = result.blobs || [];
+  const participants = [];
+
+  for (const item of blobs) {
+    try {
+      const blob = await get(item.pathname, { access: "private" });
+      if (!blob || blob.statusCode !== 200 || !blob.stream) continue;
+
+      const text = await new Response(blob.stream).text();
+      participants.push(normalizeParticipant(JSON.parse(text)));
+    } catch {
+      continue;
+    }
+  }
+
+  return participants;
+}
+
+export function normalizeParticipant(data) {
+  const name = normalizeName(data?.name);
+  const participationDates = Array.isArray(data?.participationDates)
+    ? data.participationDates.filter(Boolean)
+    : [];
+
+  return {
+    name,
+    totalCount: Number(data?.totalCount || participationDates.length || 0),
+    participationDates,
+    lastPracticeType: data?.lastPracticeType || "",
+    lastParticipatedAt: data?.lastParticipatedAt || participationDates[participationDates.length - 1] || ""
+  };
+}
+
+export function normalizeName(name) {
+  const trimmed = String(name || "").trim();
+  return trimmed || "사용자";
+}
