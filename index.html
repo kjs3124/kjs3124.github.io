@@ -364,6 +364,7 @@
         const [adminMessage, setAdminMessage] = useState("");
         const [adminParticipants, setAdminParticipants] = useState([]);
         const [isAdminLoading, setIsAdminLoading] = useState(false);
+        const [isAdminUser, setIsAdminUser] = useState(false);
 
         const recognitionRef = useRef(null);
         const pronunciationTimerRef = useRef(null);
@@ -434,6 +435,28 @@
             setAdminMessage("서버에 연결하지 못했습니다.");
           } finally {
             setIsAdminLoading(false);
+          }
+        };
+
+        const enterPracticeMenu = async () => {
+          setIsAdminUser(false);
+
+          try {
+            const response = await fetch("/api/admin-access", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                name: name.trim()
+              })
+            });
+            const data = await response.json();
+            setIsAdminUser(Boolean(response.ok && data.ok && data.isAdmin));
+          } catch {
+            setIsAdminUser(false);
+          } finally {
+            setScreen("menu");
           }
         };
 
@@ -721,7 +744,7 @@
                   </div>
 
                   <button
-                    onClick={() => setScreen("menu")}
+                    onClick={enterPracticeMenu}
                     className="btn btn-primary w-full text-lg"
                   >
                     시작
@@ -758,14 +781,16 @@
                   <div className="text-2xl font-black text-slate-950">속도 연습</div>
                   <p className="mt-3 text-sm font-bold leading-6 text-slate-500">읽는 시간을 평균 기준과 비교합니다.</p>
                 </button>
-                <button
-                  onClick={() => setScreen("admin")}
-                  className="surface p-6 text-left hover:border-slate-900 sm:col-span-2"
-                >
-                  <div className="mb-5 text-sm font-black text-slate-500">ADMIN</div>
-                  <div className="text-xl font-black text-slate-950">참여 기록 관리</div>
-                  <p className="mt-2 text-sm font-bold leading-6 text-slate-500">관리자 코드로 이름, 참여횟수, 참여일자를 조회합니다.</p>
-                </button>
+                {isAdminUser && (
+                  <button
+                    onClick={() => setScreen("admin")}
+                    className="surface p-6 text-left hover:border-slate-900 sm:col-span-2"
+                  >
+                    <div className="mb-5 text-sm font-black text-slate-500">ADMIN</div>
+                    <div className="text-xl font-black text-slate-950">참여 기록 관리</div>
+                    <p className="mt-2 text-sm font-bold leading-6 text-slate-500">관리자 코드로 이름, 참여횟수, 참여일자를 조회합니다.</p>
+                  </button>
+                )}
               </div>
             </section>
           </main>

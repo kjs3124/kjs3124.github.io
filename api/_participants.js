@@ -31,8 +31,11 @@ export function hasBlobToken() {
 }
 
 export function getParticipantPath(name) {
-  const encodedName = encodeURIComponent(normalizeName(name));
-  return `${PARTICIPANTS_PREFIX}${encodedName}.json`;
+  const fileName = normalizeName(name)
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+    .trim();
+
+  return `${PARTICIPANTS_PREFIX}${fileName || "사용자"}.json`;
 }
 
 export async function readParticipant(name) {
@@ -53,7 +56,7 @@ export async function writeParticipant(participant) {
   await put(getParticipantPath(normalized.name), JSON.stringify(normalized, null, 2), {
     access: "private",
     contentType: "application/json",
-    overwrite: true
+    allowOverwrite: true
   });
 }
 

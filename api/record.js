@@ -35,7 +35,13 @@ export async function POST(request) {
 
   try {
     await writeParticipant(participant);
-  } catch {
+  } catch (error) {
+    console.error("Failed to write participant record", {
+      name,
+      practiceType,
+      errorName: error?.name,
+      errorMessage: error?.message
+    });
     return jsonResponse({ ok: false, message: "참여 기록 저장에 실패했습니다." }, 500);
   }
 
