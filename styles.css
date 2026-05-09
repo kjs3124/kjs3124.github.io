@@ -1,0 +1,197 @@
+﻿@keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .fade-up {
+        animation: fadeUp 0.35s ease-out both;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: #0f172a;
+        background:
+          linear-gradient(120deg, rgba(37, 99, 235, 0.08), transparent 28%),
+          linear-gradient(300deg, rgba(20, 184, 166, 0.1), transparent 30%),
+          #eef4fb;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .app-shell {
+        min-height: 100vh;
+        padding: 28px;
+      }
+
+      .center-shell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .workspace {
+        width: min(1120px, 100%);
+        min-height: min(760px, calc(100vh - 56px));
+        display: grid;
+        grid-template-columns: minmax(280px, 0.8fr) minmax(360px, 1.2fr);
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 28px;
+        background: #ffffff;
+        box-shadow: 0 28px 90px rgba(15, 23, 42, 0.14);
+      }
+
+      .workspace-side {
+        display: flex;
+        min-height: 100%;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 40px;
+        color: #ffffff;
+        background:
+          linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(30, 64, 175, 0.94)),
+          #0f172a;
+      }
+
+      .workspace-main {
+        padding: 44px;
+        background: #f8fafc;
+      }
+
+      .compact-panel {
+        width: min(760px, 100%);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 28px;
+        background: #ffffff;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+      }
+
+      .wide-panel {
+        width: min(1120px, 100%);
+      }
+
+      .surface {
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: #ffffff;
+      }
+
+      .quiet-surface {
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: #f8fafc;
+      }
+
+      .btn {
+        min-height: 56px;
+        border-radius: 18px;
+        font-weight: 900;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      }
+
+      .btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+
+      .btn-primary {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 14px 28px rgba(37, 99, 235, 0.24);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        background: #1d4ed8;
+      }
+
+      .btn-teal {
+        background: #0f766e;
+        color: #ffffff;
+        box-shadow: 0 14px 28px rgba(15, 118, 110, 0.22);
+      }
+
+      .btn-teal:hover:not(:disabled) {
+        background: #115e59;
+      }
+
+      .btn-dark {
+        background: #0f172a;
+        color: #ffffff;
+      }
+
+      .btn-danger {
+        background: #dc2626;
+        color: #ffffff;
+      }
+
+      .btn-muted {
+        background: #cbd5e1;
+        color: #475569;
+        cursor: not-allowed;
+      }
+
+      .range-input {
+        height: 8px;
+        cursor: pointer;
+      }
+
+      .top-button {
+        position: absolute;
+        left: 24px;
+        top: 24px;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        background: #ffffff;
+        padding: 10px 16px;
+        color: #475569;
+        font-size: 14px;
+        font-weight: 900;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      }
+
+      .top-button:hover {
+        color: #2563eb;
+      }
+
+      @media (max-width: 860px) {
+        .app-shell {
+          padding: 16px;
+        }
+
+        .workspace {
+          min-height: auto;
+          grid-template-columns: 1fr;
+        }
+
+        .workspace-side,
+        .workspace-main {
+          padding: 28px;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .workspace-side,
+        .workspace-main,
+        .compact-panel {
+          padding: 22px;
+        }
+
+        .top-button {
+          left: 16px;
+          top: 16px;
+        }
+      }

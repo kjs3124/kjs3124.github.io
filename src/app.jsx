@@ -1,0 +1,790 @@
+﻿const { useEffect, useMemo, useRef, useState } = React;
+const {
+  PRONUNCIATION_SENTENCES,
+  SPEED_TEXT,
+  PRONUNCIATION_TIME_LIMIT_SECONDS,
+  DEFAULT_PRONUNCIATION_QUESTION_COUNT
+} = window.VoicePracticeConstants;
+const {
+  shuffleSentences,
+  calculateSentenceAccuracy,
+  formatResultTime,
+  formatRunningTimer,
+  getSpeedResultText
+} = window.VoicePracticeUtils;
+const {
+  recordParticipationRequest,
+  loadAdminParticipantsRequest,
+  checkAdminAccessRequest
+} = window.VoicePracticeApi;
+function VoicePracticeSite() {
+        const [screen, setScreen] = useState("start");
+        const [name, setName] = useState("");
+        const [weeklyCount, setWeeklyCount] = useState("2회");
+
+        const [activePronunciationSentences, setActivePronunciationSentences] = useState(() =>
+          shuffleSentences(PRONUNCIATION_SENTENCES)
+        );
+        const [pronunciationIndex, setPronunciationIndex] = useState(0);
+        const [pronunciationQuestionCount, setPronunciationQuestionCount] = useState(DEFAULT_PRONUNCIATION_QUESTION_COUNT);
+        const [pronunciationTimeLimit, setPronunciationTimeLimit] = useState(PRONUNCIATION_TIME_LIMIT_SECONDS);
+        const [pronunciationTimeLeft, setPronunciationTimeLeft] = useState(PRONUNCIATION_TIME_LIMIT_SECONDS);
+        const [isPronunciationRecording, setIsPronunciationRecording] = useState(false);
+        const [showPronunciationDetail, setShowPronunciationDetail] = useState(false);
+        const [pronunciationResults, setPronunciationResults] = useState(
+          PRONUNCIATION_SENTENCES.map((sentence, index) => ({
+            index,
+            expected: sentence,
+            recognized: "",
+            accuracy: 0
+          }))
+        );
+
+        const [speedSeconds, setSpeedSeconds] = useState(0);
+        const [speedCentiseconds, setSpeedCentiseconds] = useState(0);
+        const [isSpeedRecording, setIsSpeedRecording] = useState(false);
+        const [speedRecognizedText, setSpeedRecognizedText] = useState("");
+        const [showSpeedDetail, setShowSpeedDetail] = useState(false);
+        const [recognitionMessage, setRecognitionMessage] = useState("");
+        const [recordMessage, setRecordMessage] = useState("");
+        const [startMessage, setStartMessage] = useState("");
+        const [adminMessage, setAdminMessage] = useState("");
+        const [adminParticipants, setAdminParticipants] = useState([]);
+        const [isAdminLoading, setIsAdminLoading] = useState(false);
+        const [isAdminUser, setIsAdminUser] = useState(false);
+
+        const recognitionRef = useRef(null);
+        const pronunciationTimerRef = useRef(null);
+        const speedTimerRef = useRef(null);
+
+        const displayUserName = name.trim() ? `${name.trim()}님` : "사용자";
+        const menuTitle = `${displayUserName}의 연습`;
+
+        const overallPronunciationAccuracy = useMemo(() => {
+          if (!pronunciationResults.length) return 0;
+          const sum = pronunciationResults.reduce((acc, cur) => acc + (cur.accuracy || 0), 0);
+          return Math.round(sum / pronunciationResults.length);
+        }, [pronunciationResults]);
+
+        const speedResult = useMemo(() => getSpeedResultText(speedSeconds), [speedSeconds]);
+
+        const recordParticipation = async (practiceType) => {
+          try {
+            await recordParticipationRequest({
+              name: name.trim(),
+              practiceType
+            });
+            setRecordMessage("참여 기록이 저장되었습니다.");
+          } catch (error) {
+            setRecordMessage(error.message || "서버에 참여 기록을 저장하지 못했습니다.");
+          }
+        };
+
+        const loadAdminParticipants = async () => {
+          setIsAdminLoading(true);
+          setAdminMessage("");
+
+          try {
+            const data = await loadAdminParticipantsRequest({
+              code: name.trim()
+            });
+            setAdminParticipants(data.participants || []);
+            setAdminMessage(`${(data.participants || []).length}명의 참여자를 불러왔습니다.`);
+          } catch (error) {
+            setAdminParticipants([]);
+            setAdminMessage(error.message || "서버에 연결하지 못했습니다.");
+          } finally {
+            setIsAdminLoading(false);
+          }
+        };
+
+        const enterPracticeMenu = async () => {
+          const trimmedName = name.trim();
+
+          if (!trimmedName) {
+            setStartMessage("이름을 입력하세요.");
+            return;
+          }
+
+          setStartMessage("");
+          setIsAdminUser(false);
+
+          try {
+            const data = await checkAdminAccessRequest({
+              name: trimmedName
+            });
+            setIsAdminUser(Boolean(data.isAdmin));
+          } catch {
+            setIsAdminUser(false);
+          } finally {
+            setScreen("menu");
+          }
+        };
+
+        const stopRecognition = () => {
+          if (recognitionRef.current) {
+            try {
+              recognitionRef.current.stop();
+            } catch (e) {
+              // 이미 중지된 경우 무시합니다.
+            }
+            recognitionRef.current = null;
+          }
+        };
+
+        const getRecognitionErrorMessage = (error) => {
+          const messages = {
+            "not-allowed": "마이크 권한이 차단되었습니다. 주소창의 마이크 권한을 허용해 주세요.",
+            "service-not-allowed": "브라우저에서 음성 인식 서비스 사용이 차단되었습니다.",
+            "no-speech": "음성이 감지되지 않았습니다. 마이크 입력 상태를 확인해 주세요.",
+            "audio-capture": "마이크를 찾을 수 없습니다. 마이크 연결 상태를 확인해 주세요.",
+            network: "음성 인식 네트워크 오류가 발생했습니다. 인터넷 연결을 확인해 주세요.",
+            aborted: "음성 인식이 중단되었습니다."
+          };
+
+          return messages[error] || `음성 인식 오류가 발생했습니다. (${error || "unknown"})`;
+        };
+
+        const startRecognition = ({ mode, sentenceIndex = pronunciationIndex }) => {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+          if (!SpeechRecognition) {
+            const message = "이 브라우저에서는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge를 사용해 주세요.";
+            setRecognitionMessage(message);
+            if (mode === "speed") setSpeedRecognizedText(message);
+            return false;
+          }
+
+          stopRecognition();
+          setRecognitionMessage("");
+
+          const recognition = new SpeechRecognition();
+          recognition.lang = "ko-KR";
+          recognition.continuous = true;
+          recognition.interimResults = true;
+
+          recognition.onresult = (event) => {
+            let transcript = "";
+            for (let i = 0; i < event.results.length; i += 1) {
+              transcript += `${event.results[i][0].transcript} `;
+            }
+
+            const finalText = transcript.trim();
+
+            if (mode === "pronunciation") {
+              setPronunciationResults((prev) =>
+                prev.map((item, idx) =>
+                  idx === sentenceIndex
+                    ? {
+                        ...item,
+                        recognized: finalText,
+                        accuracy: calculateSentenceAccuracy(item.expected, finalText)
+                      }
+                    : item
+                )
+              );
+            }
+
+            if (mode === "speed") {
+              setSpeedRecognizedText(finalText);
+            }
+          };
+
+          recognition.onerror = (event) => {
+            const message = getRecognitionErrorMessage(event.error);
+            setRecognitionMessage(message);
+            if (mode === "speed") setSpeedRecognizedText(message);
+          };
+          recognitionRef.current = recognition;
+
+          try {
+            recognition.start();
+            return true;
+          } catch (error) {
+            setRecognitionMessage("음성 인식을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+            recognitionRef.current = null;
+            return false;
+          }
+        };
+
+        const moveToNextPronunciationSentence = () => {
+          stopRecognition();
+
+          if (pronunciationIndex < activePronunciationSentences.length - 1) {
+            const nextIndex = pronunciationIndex + 1;
+            setPronunciationIndex(nextIndex);
+            setPronunciationTimeLeft(pronunciationTimeLimit);
+          } else {
+            setIsPronunciationRecording(false);
+            clearInterval(pronunciationTimerRef.current);
+            recordParticipation("pronunciation");
+            setScreen("pronunciation-result");
+          }
+        };
+
+        const beginPronunciationRecording = () => {
+          setRecordMessage("");
+          const selectedCount = Math.min(pronunciationQuestionCount, PRONUNCIATION_SENTENCES.length);
+          const shuffledSentences = shuffleSentences(PRONUNCIATION_SENTENCES).slice(0, selectedCount);
+          setActivePronunciationSentences(shuffledSentences);
+          setPronunciationResults(
+            shuffledSentences.map((sentence, index) => ({
+              index,
+              expected: sentence,
+              recognized: "",
+              accuracy: 0
+            }))
+          );
+          setPronunciationIndex(0);
+          setPronunciationTimeLeft(pronunciationTimeLimit);
+          setShowPronunciationDetail(false);
+          setRecognitionMessage("");
+          setScreen("pronunciation-recording");
+          const started = startRecognition({ mode: "pronunciation", sentenceIndex: 0 });
+          setIsPronunciationRecording(started);
+        };
+
+        const goToPracticeMenu = () => {
+          stopRecognition();
+          clearInterval(pronunciationTimerRef.current);
+          clearInterval(speedTimerRef.current);
+          setIsPronunciationRecording(false);
+          setIsSpeedRecording(false);
+          setScreen("menu");
+        };
+
+        const retryPronunciationPractice = () => {
+          stopRecognition();
+          clearInterval(pronunciationTimerRef.current);
+          beginPronunciationRecording();
+        };
+
+        const retrySpeedPractice = () => {
+          stopRecognition();
+          clearInterval(speedTimerRef.current);
+          setSpeedSeconds(0);
+          setSpeedCentiseconds(0);
+          setSpeedRecognizedText("");
+          setShowSpeedDetail(false);
+          setIsSpeedRecording(false);
+          setScreen("speed-practice");
+        };
+
+        const beginSpeedRecording = () => {
+          setSpeedSeconds(0);
+          setSpeedCentiseconds(0);
+          setSpeedRecognizedText("");
+          setShowSpeedDetail(false);
+          setRecordMessage("");
+          setRecognitionMessage("");
+
+          setIsSpeedRecording(true);
+
+          const started = startRecognition({ mode: "speed" });
+          if (!started) {
+            setIsSpeedRecording(false);
+          }
+        };
+
+        const endSpeedRecording = () => {
+          stopRecognition();
+          clearInterval(speedTimerRef.current);
+          setIsSpeedRecording(false);
+          recordParticipation("speed");
+
+          setTimeout(() => {
+            setScreen("speed-result");
+          }, 1000);
+        };
+
+        useEffect(() => {
+          if (screen !== "pronunciation-recording" || !isPronunciationRecording) return undefined;
+
+          if (pronunciationIndex > 0) {
+            const started = startRecognition({ mode: "pronunciation", sentenceIndex: pronunciationIndex });
+            if (!started) {
+              setIsPronunciationRecording(false);
+              return undefined;
+            }
+          }
+
+          pronunciationTimerRef.current = setInterval(() => {
+            setPronunciationTimeLeft((prev) => {
+              if (prev <= 1) {
+                setTimeout(() => {
+                  moveToNextPronunciationSentence();
+                }, 0);
+                return pronunciationTimeLimit;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+
+          return () => {
+            clearInterval(pronunciationTimerRef.current);
+            stopRecognition();
+          };
+        }, [screen, isPronunciationRecording, pronunciationIndex, pronunciationTimeLimit]);
+
+        useEffect(() => {
+          if (!isSpeedRecording) return undefined;
+
+          speedTimerRef.current = setInterval(() => {
+            setSpeedCentiseconds((prev) => {
+              const next = prev + 1;
+              setSpeedSeconds(Math.floor(next / 100));
+              return next;
+            });
+          }, 10);
+
+          return () => {
+            clearInterval(speedTimerRef.current);
+          };
+        }, [isSpeedRecording]);
+
+        const HomeButton = () => (
+          <button
+            onClick={goToPracticeMenu}
+            className="top-button"
+          >
+            ↩ 처음으로
+          </button>
+        );
+
+        const renderStartScreen = () => (
+          <main className="app-shell center-shell">
+            <section className="workspace fade-up">
+              <aside className="workspace-side">
+                <div>
+                  <div className="mb-8 inline-flex rounded-full border border-white/20 px-4 py-2 text-sm font-black text-blue-100">
+                    음성 연습 도구
+                  </div>
+                  <h1 className="text-6xl font-black leading-tight tracking-normal">음성 연습</h1>
+                  <p className="mt-5 max-w-sm text-base font-bold leading-7 text-blue-100">
+                    발음 정확도와 읽기 속도를 한 번에 확인하는 수업용 연습 도구입니다.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 text-sm font-bold text-blue-100">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">발음 연습 문항 수 조절</div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">문장당 제한 시간 설정</div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">참여 기록 자동 저장</div>
+                </div>
+              </aside>
+
+              <div className="workspace-main flex items-center">
+                <div className="w-full">
+                  <div className="mb-8">
+                    <p className="text-sm font-black uppercase text-blue-600">Start</p>
+                    <h2 className="mt-2 text-3xl font-black text-slate-950">연습 정보를 입력하세요</h2>
+                  </div>
+
+                  <label className="block text-base font-black text-slate-700 mb-3">이름</label>
+                  <input
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setStartMessage("");
+                    }}
+                    placeholder="이름을 입력하세요"
+                    className="mb-8 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-lg font-bold outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                  />
+                  {startMessage && <p className="-mt-5 mb-8 text-sm font-black text-red-600">{startMessage}</p>}
+
+                  <p className="text-base font-black text-slate-700 mb-3">일주일에 연습할 횟수</p>
+                  <div className="mb-10 grid grid-cols-3 gap-3">
+                    {["2회", "3회", "4회"].map((count) => (
+                      <button
+                        key={count}
+                        onClick={() => setWeeklyCount(count)}
+                        className={`btn border text-base ${
+                          weeklyCount === count
+                            ? "border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                            : "border-slate-300 bg-white text-slate-700 hover:border-blue-400"
+                        }`}
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={enterPracticeMenu}
+                    className="btn btn-primary w-full text-lg"
+                  >
+                    시작
+                  </button>
+                </div>
+              </div>
+            </section>
+          </main>
+        );
+
+        const renderMenuScreen = () => (
+          <main className="app-shell center-shell">
+            <section className="compact-panel p-8">
+              <div className="mb-8 flex flex-col gap-2 border-b border-slate-200 pb-6">
+                <p className="text-sm font-black text-blue-600">연습 메뉴</p>
+                <h2 className="text-4xl font-black text-slate-950">{menuTitle}</h2>
+                <p className="text-sm font-bold text-slate-500">주 {weeklyCount} 연습</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <button
+                  onClick={() => setScreen("pronunciation-intro")}
+                  className="surface p-6 text-left hover:border-blue-500 hover:shadow-xl hover:shadow-blue-100"
+                >
+                  <div className="mb-8 text-sm font-black text-blue-600">01</div>
+                  <div className="text-2xl font-black text-slate-950">발음 연습</div>
+                  <p className="mt-3 text-sm font-bold leading-6 text-slate-500">문장을 읽고 인식률을 확인합니다.</p>
+                </button>
+                <button
+                  onClick={() => setScreen("speed-intro")}
+                  className="surface p-6 text-left hover:border-teal-600 hover:shadow-xl hover:shadow-teal-100"
+                >
+                  <div className="mb-8 text-sm font-black text-teal-700">02</div>
+                  <div className="text-2xl font-black text-slate-950">속도 연습</div>
+                  <p className="mt-3 text-sm font-bold leading-6 text-slate-500">읽는 시간을 평균 기준과 비교합니다.</p>
+                </button>
+                {isAdminUser && (
+                  <button
+                    onClick={() => setScreen("admin")}
+                    className="surface p-6 text-left hover:border-slate-900 sm:col-span-2"
+                  >
+                    <div className="mb-5 text-sm font-black text-slate-500">관리</div>
+                    <div className="text-xl font-black text-slate-950">참여 기록 관리</div>
+                    <p className="mt-2 text-sm font-bold leading-6 text-slate-500">이름, 참여횟수, 참여일자를 조회합니다.</p>
+                  </button>
+                )}
+              </div>
+            </section>
+          </main>
+        );
+
+        const renderAdminScreen = () => (
+          <main className="app-shell">
+            <section className="compact-panel wide-panel relative mx-auto p-8">
+              <HomeButton />
+              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
+                <p className="text-sm font-black text-slate-500">관리자</p>
+                <h2 className="mt-2 text-4xl font-black text-slate-950">관리자 페이지</h2>
+                <p className="mt-3 text-sm font-bold text-slate-500">참여자별 누적 기록을 확인합니다.</p>
+              </div>
+
+              <div>
+                <button
+                  onClick={loadAdminParticipants}
+                  disabled={isAdminLoading}
+                  className={`btn w-full text-base ${
+                    isAdminLoading ? "bg-gray-400 cursor-not-allowed" : "bg-gray-900 hover:bg-black"
+                  }`}
+                >
+                  참여 기록 조회
+                </button>
+              </div>
+
+              {adminMessage && <p className="mt-4 text-center text-sm font-bold text-gray-600">{adminMessage}</p>}
+
+              <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="min-w-[680px]">
+                  <div className="grid grid-cols-[1fr_110px_2fr] bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
+                    <div>이름</div>
+                    <div>총 참여횟수</div>
+                    <div>참여일자</div>
+                  </div>
+
+                  {adminParticipants.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm font-bold text-gray-500">조회된 참여자가 없습니다.</div>
+                  ) : (
+                    adminParticipants.map((participant) => (
+                      <div
+                        key={participant.name}
+                        className="grid grid-cols-[1fr_110px_2fr] gap-3 border-t border-slate-200 px-4 py-4 text-sm text-slate-700"
+                      >
+                        <div className="font-black text-slate-950">{participant.name}</div>
+                        <div className="font-bold">{participant.totalCount}회</div>
+                        <div className="leading-6">
+                          {(participant.participationDates || []).map((date) => (
+                            <div key={date}>{new Date(date).toLocaleString("ko-KR")}</div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+          </main>
+        );
+
+        const renderPronunciationIntroScreen = () => (
+          <main className="app-shell center-shell">
+            <section className="compact-panel relative max-w-3xl p-8">
+              <HomeButton />
+              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
+                <p className="text-sm font-black text-blue-600">발음</p>
+                <h2 className="mt-2 text-4xl font-black text-slate-950">발음 연습 설정</h2>
+                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
+                  {pronunciationQuestionCount}개 문장을 문장당 {pronunciationTimeLimit}초 안에 읽습니다.
+                </p>
+              </div>
+
+              <div className="mb-8 grid gap-5">
+                <label className="quiet-surface block p-5">
+                  <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
+                    <span>문항 수</span>
+                    <span>{pronunciationQuestionCount}개</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max={PRONUNCIATION_SENTENCES.length}
+                    step="1"
+                    value={pronunciationQuestionCount}
+                    onChange={(e) => setPronunciationQuestionCount(Number(e.target.value))}
+                    className="range-input w-full accent-indigo-700"
+                  />
+                </label>
+
+                <label className="quiet-surface block p-5">
+                  <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
+                    <span>문장당 제한 시간</span>
+                    <span>{pronunciationTimeLimit}초</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="3"
+                    max="20"
+                    step="1"
+                    value={pronunciationTimeLimit}
+                    onChange={(e) => setPronunciationTimeLimit(Number(e.target.value))}
+                    className="range-input w-full accent-indigo-700"
+                  />
+                </label>
+              </div>
+
+              <button
+                onClick={beginPronunciationRecording}
+                className="btn btn-primary w-full text-lg"
+              >
+                시작
+              </button>
+            </section>
+          </main>
+        );
+
+        const renderPronunciationRecordingScreen = () => (
+          <main className="app-shell center-shell">
+            <section className="compact-panel wide-panel relative p-8">
+              <HomeButton />
+              <div className="grid gap-6 pt-10 sm:grid-cols-[160px_1fr] sm:pt-0">
+                <div className="flex flex-col items-center justify-center rounded-3xl bg-blue-600 p-6 text-white">
+                  <div className="text-sm font-black text-blue-100">남은 시간</div>
+                  <div className="mt-2 text-7xl font-black">{pronunciationTimeLeft}</div>
+                  <div className="mt-2 text-sm font-black text-blue-100">
+                    {pronunciationIndex + 1} / {activePronunciationSentences.length}
+                  </div>
+                </div>
+                <div className="surface flex min-h-[260px] flex-col justify-center p-8 text-center">
+                  <div className="mb-4 text-sm font-black text-blue-600">연습 문장</div>
+                  <div className="text-3xl font-black leading-relaxed text-slate-950">
+                    {activePronunciationSentences[pronunciationIndex]}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-6 text-center font-bold text-red-500">
+                {recognitionMessage || "녹음이 진행 중입니다..."}
+              </p>
+            </section>
+          </main>
+        );
+
+        const renderPronunciationResultScreen = () => (
+          <main className="app-shell center-shell">
+            <section className="compact-panel relative max-w-3xl p-8">
+              <HomeButton />
+              <div className="pt-10 text-center sm:pt-0">
+                <p className="text-sm font-black text-blue-600">결과</p>
+                <div className="mt-4 text-8xl font-black text-slate-950">{overallPronunciationAccuracy}%</div>
+                <div className="mt-3 text-lg font-bold text-slate-500">
+                  {overallPronunciationAccuracy}%가 인식되었습니다.
+                </div>
+              </div>
+              {recordMessage && <p className="mb-6 text-center text-sm font-bold text-gray-500">{recordMessage}</p>}
+
+              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  onClick={retryPronunciationPractice}
+                  className="btn btn-dark text-lg"
+                >
+                  재도전
+                </button>
+                <button
+                  onClick={() => setShowPronunciationDetail((prev) => !prev)}
+                  className="btn btn-primary text-lg"
+                >
+                  내 녹음 확인하기
+                </button>
+              </div>
+
+              {showPronunciationDetail && (
+                <div className="mt-8 grid gap-4">
+                  {pronunciationResults.map((item, idx) => (
+                    <div key={item.index} className="quiet-surface p-5">
+                      <div className="font-black text-blue-700 mb-3">문장 {idx + 1}</div>
+                      <p className="text-sm leading-7 text-slate-700">
+                        <b>녹음한 내용:</b> {item.expected}
+                      </p>
+                      <p className="text-sm leading-7 text-slate-700">
+                        <b>ai가 음성인식해서 입력된 문장내용:</b> {item.recognized || "인식된 내용이 없습니다."}
+                      </p>
+                      <p className="text-sm leading-7 text-slate-700">
+                        <b>인식률:</b> {item.accuracy}%
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </main>
+        );
+
+        const renderSpeedIntroScreen = () => (
+          <main className="app-shell center-shell">
+            <section className="compact-panel relative max-w-3xl p-8">
+              <HomeButton />
+              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
+                <p className="text-sm font-black text-teal-700">속도</p>
+                <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
+                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
+                  문장을 모두 읽은 뒤 종료하면 평균 속도와 비교합니다.
+                </p>
+              </div>
+              <div className="mb-8 grid gap-4 sm:grid-cols-3">
+                <div className="quiet-surface p-5">
+                  <div className="text-sm font-black text-teal-700">01</div>
+                  <p className="mt-3 text-sm font-bold text-slate-600">시작 버튼을 누릅니다.</p>
+                </div>
+                <div className="quiet-surface p-5">
+                  <div className="text-sm font-black text-teal-700">02</div>
+                  <p className="mt-3 text-sm font-bold text-slate-600">문장을 소리 내어 읽습니다.</p>
+                </div>
+                <div className="quiet-surface p-5">
+                  <div className="text-sm font-black text-teal-700">03</div>
+                  <p className="mt-3 text-sm font-bold text-slate-600">종료 버튼으로 결과를 봅니다.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setScreen("speed-practice")}
+                className="btn btn-teal w-full text-lg"
+              >
+                연습하기
+              </button>
+            </section>
+          </main>
+        );
+
+        const renderSpeedPracticeScreen = () => (
+          <main className="app-shell">
+            <section className="compact-panel wide-panel relative mx-auto p-8">
+              <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-black text-teal-700">속도 연습</p>
+                  <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
+                </div>
+                <div className="rounded-2xl bg-slate-950 px-5 py-3 text-2xl font-black text-white">
+                  {formatRunningTimer(speedCentiseconds)}
+                </div>
+              </div>
+
+              <div className="surface p-8 text-xl font-bold leading-10 text-slate-900 whitespace-pre-line">
+                {SPEED_TEXT}
+              </div>
+
+              {recognitionMessage && (
+                <p className="mt-5 text-center font-bold text-red-500">{recognitionMessage}</p>
+              )}
+
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <button
+                  onClick={beginSpeedRecording}
+                  disabled={isSpeedRecording}
+                  className={`btn text-lg ${
+                    isSpeedRecording ? "btn-muted" : "btn-teal"
+                  }`}
+                >
+                  시작하기
+                </button>
+                <button
+                  onClick={endSpeedRecording}
+                  disabled={!isSpeedRecording}
+                  className={`btn text-lg ${
+                    !isSpeedRecording ? "btn-muted" : "btn-danger"
+                  }`}
+                >
+                  종료하기
+                </button>
+              </div>
+            </section>
+          </main>
+        );
+
+        const renderSpeedResultScreen = () => (
+          <main className="app-shell center-shell">
+            <section className="compact-panel relative max-w-3xl p-8">
+              <HomeButton />
+              <div className="pt-10 text-center sm:pt-0">
+                <p className="text-sm font-black text-teal-700">결과</p>
+                <div className="mt-4 text-5xl font-black text-slate-950">{speedResult.title}</div>
+                <div className="mt-4 text-4xl font-black text-teal-700">{formatResultTime(speedSeconds)}</div>
+                <div className="mt-3 text-base font-bold text-slate-500">{speedResult.description}</div>
+              </div>
+              {recordMessage && <p className="mb-6 text-center text-sm font-bold text-gray-500">{recordMessage}</p>}
+
+              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  onClick={retrySpeedPractice}
+                  className="btn btn-dark text-lg"
+                >
+                  재도전
+                </button>
+                <button
+                  onClick={() => setShowSpeedDetail((prev) => !prev)}
+                  className="btn btn-teal text-lg"
+                >
+                  내 녹음 확인하기
+                </button>
+              </div>
+
+              {showSpeedDetail && (
+                <div className="quiet-surface mt-8 p-5">
+                  <p className="text-sm leading-7 mb-4 text-slate-700">
+                    <b>녹음한 내용:</b>
+                  </p>
+                  <p className="text-sm leading-7 whitespace-pre-line mb-5 text-slate-700">{SPEED_TEXT}</p>
+                  <p className="text-sm leading-7 mb-4 text-slate-700">
+                    <b>ai가 음성인식해서 입력된 문장내용:</b>
+                  </p>
+                  <p className="text-sm leading-7 whitespace-pre-line text-slate-700">
+                    {speedRecognizedText || "인식된 내용이 없습니다."}
+                  </p>
+                </div>
+              )}
+            </section>
+          </main>
+        );
+
+        if (screen === "start") return renderStartScreen();
+        if (screen === "menu") return renderMenuScreen();
+        if (screen === "admin") return renderAdminScreen();
+        if (screen === "pronunciation-intro") return renderPronunciationIntroScreen();
+        if (screen === "pronunciation-recording") return renderPronunciationRecordingScreen();
+        if (screen === "pronunciation-result") return renderPronunciationResultScreen();
+        if (screen === "speed-intro") return renderSpeedIntroScreen();
+        if (screen === "speed-practice") return renderSpeedPracticeScreen();
+        if (screen === "speed-result") return renderSpeedResultScreen();
+
+        return null;
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<VoicePracticeSite />);
