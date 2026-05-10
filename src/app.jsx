@@ -52,10 +52,15 @@ function VoicePracticeSite() {
         const [adminParticipants, setAdminParticipants] = useState([]);
         const [isAdminLoading, setIsAdminLoading] = useState(false);
         const [isAdminUser, setIsAdminUser] = useState(false);
+        const [micLevel, setMicLevel] = useState(0);
+        const [micMessage, setMicMessage] = useState("");
 
         const recognitionRef = useRef(null);
         const pronunciationTimerRef = useRef(null);
         const speedTimerRef = useRef(null);
+        const micStreamRef = useRef(null);
+        const micAudioContextRef = useRef(null);
+        const micAnimationFrameRef = useRef(null);
 
         const displayUserName = name.trim() ? `${name.trim()}님` : "사용자";
         const menuTitle = `${displayUserName}의 연습`;
@@ -129,6 +134,69 @@ function VoicePracticeSite() {
               // 이미 중지된 경우 무시합니다.
             }
             recognitionRef.current = null;
+          }
+        };
+
+        const stopMicLevelMonitor = () => {
+          if (micAnimationFrameRef.current) {
+            cancelAnimationFrame(micAnimationFrameRef.current);
+            micAnimationFrameRef.current = null;
+          }
+
+          if (micStreamRef.current) {
+            micStreamRef.current.getTracks().forEach((track) => track.stop());
+            micStreamRef.current = null;
+          }
+
+          if (micAudioContextRef.current) {
+            micAudioContextRef.current.close().catch(() => {});
+            micAudioContextRef.current = null;
+          }
+
+          setMicLevel(0);
+        };
+
+        const startMicLevelMonitor = async () => {
+          if (!navigator.mediaDevices?.getUserMedia) {
+            setMicMessage("이 브라우저에서는 마이크 입력 표시를 지원하지 않습니다.");
+            return;
+          }
+
+          stopMicLevelMonitor();
+
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const audioContext = new AudioContext();
+            const analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(stream);
+
+            analyser.fftSize = 256;
+            const data = new Uint8Array(analyser.fftSize);
+            source.connect(analyser);
+            micStreamRef.current = stream;
+            micAudioContextRef.current = audioContext;
+            setMicMessage("");
+
+            const updateLevel = () => {
+              analyser.getByteTimeDomainData(data);
+
+              let sum = 0;
+              for (let i = 0; i < data.length; i += 1) {
+                const value = (data[i] - 128) / 128;
+                sum += value * value;
+              }
+
+              const rms = Math.sqrt(sum / data.length);
+              const level = Math.min(100, Math.round(rms * 260));
+              setMicLevel(level);
+              micAnimationFrameRef.current = requestAnimationFrame(updateLevel);
+            };
+
+            updateLevel();
+          } catch {
+            setMicLevel(0);
+            setMicMessage("마이크 입력을 확인할 수 없습니다. 마이크 권한을 허용해 주세요.");
           }
         };
 
@@ -216,6 +284,7 @@ function VoicePracticeSite() {
             setPronunciationTimeLeft(pronunciationTimeLimit);
           } else {
             setIsPronunciationRecording(false);
+            stopMicLevelMonitor();
             clearInterval(pronunciationTimerRef.current);
             recordParticipation("pronunciation");
             setScreen("pronunciation-result");
@@ -239,13 +308,16 @@ function VoicePracticeSite() {
           setPronunciationTimeLeft(pronunciationTimeLimit);
           setShowPronunciationDetail(false);
           setRecognitionMessage("");
+          setMicMessage("");
           setScreen("pronunciation-recording");
+          startMicLevelMonitor();
           const started = startRecognition({ mode: "pronunciation", sentenceIndex: 0 });
           setIsPronunciationRecording(started);
         };
 
         const goToPracticeMenu = () => {
           stopRecognition();
+          stopMicLevelMonitor();
           clearInterval(pronunciationTimerRef.current);
           clearInterval(speedTimerRef.current);
           setIsPronunciationRecording(false);
@@ -261,6 +333,7 @@ function VoicePracticeSite() {
 
         const retrySpeedPractice = () => {
           stopRecognition();
+          stopMicLevelMonitor();
           clearInterval(speedTimerRef.current);
           setSpeedSeconds(0);
           setSpeedCentiseconds(0);
@@ -277,17 +350,21 @@ function VoicePracticeSite() {
           setShowSpeedDetail(false);
           setRecordMessage("");
           setRecognitionMessage("");
+          setMicMessage("");
 
           setIsSpeedRecording(true);
+          startMicLevelMonitor();
 
           const started = startRecognition({ mode: "speed" });
           if (!started) {
+            stopMicLevelMonitor();
             setIsSpeedRecording(false);
           }
         };
 
         const endSpeedRecording = () => {
           stopRecognition();
+          stopMicLevelMonitor();
           clearInterval(speedTimerRef.current);
           setIsSpeedRecording(false);
           recordParticipation("speed");
@@ -342,6 +419,12 @@ function VoicePracticeSite() {
           };
         }, [isSpeedRecording]);
 
+        useEffect(() => {
+          return () => {
+            stopMicLevelMonitor();
+          };
+        }, []);
+
         const HomeButton = () => (
           <button
             onClick={goToPracticeMenu}
@@ -349,6 +432,26 @@ function VoicePracticeSite() {
           >
             ↩ 처음으로
           </button>
+        );
+
+        const MicLevelMeter = () => (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between text-sm font-black text-slate-600">
+              <span>마이크 입력</span>
+              <span>{micLevel}%</span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className={`h-full rounded-full transition-[width] duration-100 ${
+                  micLevel > 12 ? "bg-emerald-500" : "bg-slate-400"
+                }`}
+                style={{ width: `${micLevel}%` }}
+              />
+            </div>
+            <p className={`mt-3 text-sm font-bold ${micMessage ? "text-red-500" : "text-slate-500"}`}>
+              {micMessage || (micLevel > 12 ? "입력이 감지되고 있습니다." : "소리가 작거나 입력이 없습니다.")}
+            </p>
+          </div>
         );
 
         const renderStartScreen = () => (
@@ -595,6 +698,7 @@ function VoicePracticeSite() {
               <p className="mt-6 text-center font-bold text-red-500">
                 {recognitionMessage || "녹음이 진행 중입니다..."}
               </p>
+              <MicLevelMeter />
             </section>
           </main>
         );
@@ -704,6 +808,7 @@ function VoicePracticeSite() {
               {recognitionMessage && (
                 <p className="mt-5 text-center font-bold text-red-500">{recognitionMessage}</p>
               )}
+              <MicLevelMeter />
 
               <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <button
