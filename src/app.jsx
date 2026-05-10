@@ -580,7 +580,7 @@ function VoicePracticeSite() {
                   onClick={loadAdminParticipants}
                   disabled={isAdminLoading}
                   className={`btn w-full text-base ${
-                    isAdminLoading ? "btn-muted" : "btn-dark"
+                    isAdminLoading ? "btn-muted" : "border border-slate-300 bg-white text-slate-950 hover:bg-slate-50"
                   }`}
                 >
                   참여 기록 조회
