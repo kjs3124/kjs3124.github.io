@@ -15,11 +15,13 @@ export async function POST(request) {
   const body = await readJsonBody(request);
   const name = normalizeName(body.name);
   const practiceType = body.practiceType === "speed" ? "speed" : "pronunciation";
+  const accuracy = Number.isFinite(Number(body.accuracy)) ? Math.round(Number(body.accuracy)) : null;
   const participatedAt = new Date().toISOString();
   const previous = (await readParticipant(name)) || {
     name,
     totalCount: 0,
-    participationDates: []
+    participationDates: [],
+    records: []
   };
 
   const participant = {
@@ -29,8 +31,17 @@ export async function POST(request) {
       ...(Array.isArray(previous.participationDates) ? previous.participationDates : []),
       participatedAt
     ],
+    records: [
+      ...(Array.isArray(previous.records) ? previous.records : []),
+      {
+        participatedAt,
+        practiceType,
+        accuracy
+      }
+    ],
     lastPracticeType: practiceType,
-    lastParticipatedAt: participatedAt
+    lastParticipatedAt: participatedAt,
+    lastAccuracy: accuracy
   };
 
   try {

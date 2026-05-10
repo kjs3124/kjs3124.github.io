@@ -94,8 +94,10 @@ export function normalizeParticipant(data) {
     name,
     totalCount: Number(data?.totalCount || participationDates.length || 0),
     participationDates,
+    records: Array.isArray(data?.records) ? data.records : [],
     lastPracticeType: data?.lastPracticeType || "",
-    lastParticipatedAt: data?.lastParticipatedAt || participationDates[participationDates.length - 1] || ""
+    lastParticipatedAt: data?.lastParticipatedAt || participationDates[participationDates.length - 1] || "",
+    lastAccuracy: Number.isFinite(Number(data?.lastAccuracy)) ? Math.round(Number(data.lastAccuracy)) : null
   };
 }
 

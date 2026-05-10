@@ -15,8 +15,8 @@ async function postJson(url, payload) {
   return data;
 }
 
-function recordParticipationRequest({ name, practiceType }) {
-  return postJson("/api/record", { name, practiceType });
+function recordParticipationRequest({ name, practiceType, accuracy }) {
+  return postJson("/api/record", { name, practiceType, accuracy });
 }
 
 function loadAdminParticipantsRequest({ code }) {

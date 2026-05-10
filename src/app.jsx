@@ -77,7 +77,8 @@ function VoicePracticeSite() {
           try {
             await recordParticipationRequest({
               name: name.trim(),
-              practiceType
+              practiceType,
+              accuracy: practiceType === "pronunciation" ? overallPronunciationAccuracy : null
             });
             setRecordMessage("참여 기록이 저장되었습니다.");
           } catch (error) {
@@ -556,7 +557,7 @@ function VoicePracticeSite() {
                   >
                     <div className="mb-5 text-sm font-black text-slate-500">관리</div>
                     <div className="text-xl font-black text-slate-950">참여 기록 관리</div>
-                    <p className="mt-2 text-sm font-bold leading-6 text-slate-500">이름, 참여횟수, 참여일자를 조회합니다.</p>
+                    <p className="mt-2 text-sm font-bold leading-6 text-slate-500">이름, 참여횟수, 인식률, 참여일자를 조회합니다.</p>
                   </button>
                 )}
               </div>
@@ -579,7 +580,7 @@ function VoicePracticeSite() {
                   onClick={loadAdminParticipants}
                   disabled={isAdminLoading}
                   className={`btn w-full text-base ${
-                    isAdminLoading ? "bg-gray-400 cursor-not-allowed" : "bg-gray-900 hover:bg-black"
+                    isAdminLoading ? "btn-muted" : "btn-dark"
                   }`}
                 >
                   참여 기록 조회
@@ -589,10 +590,11 @@ function VoicePracticeSite() {
               {adminMessage && <p className="mt-4 text-center text-sm font-bold text-gray-600">{adminMessage}</p>}
 
               <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="min-w-[680px]">
-                  <div className="grid grid-cols-[1fr_110px_2fr] bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
+                <div className="min-w-[820px]">
+                  <div className="grid grid-cols-[1fr_110px_110px_2fr] bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
                     <div>이름</div>
                     <div>총 참여횟수</div>
+                    <div>최근 인식률</div>
                     <div>참여일자</div>
                   </div>
 
@@ -602,10 +604,13 @@ function VoicePracticeSite() {
                     adminParticipants.map((participant) => (
                       <div
                         key={participant.name}
-                        className="grid grid-cols-[1fr_110px_2fr] gap-3 border-t border-slate-200 px-4 py-4 text-sm text-slate-700"
+                        className="grid grid-cols-[1fr_110px_110px_2fr] gap-3 border-t border-slate-200 px-4 py-4 text-sm text-slate-700"
                       >
                         <div className="font-black text-slate-950">{participant.name}</div>
                         <div className="font-bold">{participant.totalCount}회</div>
+                        <div className="font-bold">
+                          {typeof participant.lastAccuracy === "number" ? `${participant.lastAccuracy}%` : "-"}
+                        </div>
                         <div className="leading-6">
                           {(participant.participationDates || []).map((date) => (
                             <div key={date}>{new Date(date).toLocaleString("ko-KR")}</div>

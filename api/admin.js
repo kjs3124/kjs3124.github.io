@@ -24,7 +24,10 @@ export async function POST(request) {
       participationDates: Array.isArray(participant.participationDates)
         ? participant.participationDates
         : [],
-      lastParticipatedAt: participant.lastParticipatedAt || ""
+      lastParticipatedAt: participant.lastParticipatedAt || "",
+      lastAccuracy: Number.isFinite(Number(participant.lastAccuracy))
+        ? Math.round(Number(participant.lastAccuracy))
+        : null
     }))
     .sort((a, b) => {
       const dateA = a.lastParticipatedAt ? new Date(a.lastParticipatedAt).getTime() : 0;
