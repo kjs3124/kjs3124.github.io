@@ -25,14 +25,13 @@ export async function POST(request) {
         ? participant.participationDates
         : [],
       lastParticipatedAt: participant.lastParticipatedAt || "",
+      lastParticipatedAtMs: Number(participant.lastParticipatedAtMs || 0),
       lastAccuracy: Number.isFinite(Number(participant.lastAccuracy))
         ? Math.round(Number(participant.lastAccuracy))
         : null
     }))
     .sort((a, b) => {
-      const dateA = a.lastParticipatedAt ? new Date(a.lastParticipatedAt).getTime() : 0;
-      const dateB = b.lastParticipatedAt ? new Date(b.lastParticipatedAt).getTime() : 0;
-      return dateB - dateA;
+      return b.lastParticipatedAtMs - a.lastParticipatedAtMs;
     });
 
   return jsonResponse({

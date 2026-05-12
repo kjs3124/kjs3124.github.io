@@ -20,7 +20,6 @@ const {
 function VoicePracticeSite() {
         const [screen, setScreen] = useState("start");
         const [name, setName] = useState("");
-        const [weeklyCount, setWeeklyCount] = useState("2회");
 
         const [activePronunciationSentences, setActivePronunciationSentences] = useState(() =>
           shuffleSentences(PRONUNCIATION_SENTENCES)
@@ -495,23 +494,6 @@ function VoicePracticeSite() {
                   />
                   {startMessage && <p className="-mt-5 mb-8 text-sm font-black text-red-600">{startMessage}</p>}
 
-                  <p className="text-base font-black text-slate-700 mb-3">일주일에 연습할 횟수</p>
-                  <div className="mb-10 grid grid-cols-3 gap-3">
-                    {["2회", "3회", "4회"].map((count) => (
-                      <button
-                        key={count}
-                        onClick={() => setWeeklyCount(count)}
-                        className={`btn border text-base ${
-                          weeklyCount === count
-                            ? "border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                            : "border-slate-300 bg-white text-slate-700 hover:border-blue-400"
-                        }`}
-                      >
-                        {count}
-                      </button>
-                    ))}
-                  </div>
-
                   <button
                     onClick={enterPracticeMenu}
                     className="btn btn-primary w-full text-lg"
@@ -530,7 +512,6 @@ function VoicePracticeSite() {
               <div className="mb-8 flex flex-col gap-2 border-b border-slate-200 pb-6">
                 <p className="text-sm font-black text-blue-600">연습 메뉴</p>
                 <h2 className="text-4xl font-black text-slate-950">{menuTitle}</h2>
-                <p className="text-sm font-bold text-slate-500">주 {weeklyCount} 연습</p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -613,7 +594,7 @@ function VoicePracticeSite() {
                         </div>
                         <div className="leading-6">
                           {(participant.participationDates || []).map((date) => (
-                            <div key={date}>{new Date(date).toLocaleString("ko-KR")}</div>
+                            <div key={date}>{date}</div>
                           ))}
                         </div>
                       </div>

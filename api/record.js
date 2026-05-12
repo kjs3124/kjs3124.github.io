@@ -1,4 +1,5 @@
 import {
+  getKoreaTimestamp,
   hasBlobToken,
   jsonResponse,
   normalizeName,
@@ -16,7 +17,7 @@ export async function POST(request) {
   const name = normalizeName(body.name);
   const practiceType = body.practiceType === "speed" ? "speed" : "pronunciation";
   const accuracy = Number.isFinite(Number(body.accuracy)) ? Math.round(Number(body.accuracy)) : null;
-  const participatedAt = new Date().toISOString();
+  const participatedAt = getKoreaTimestamp();
   const previous = (await readParticipant(name)) || {
     name,
     totalCount: 0,
@@ -29,18 +30,20 @@ export async function POST(request) {
     totalCount: Number(previous.totalCount || 0) + 1,
     participationDates: [
       ...(Array.isArray(previous.participationDates) ? previous.participationDates : []),
-      participatedAt
+      participatedAt.display
     ],
     records: [
       ...(Array.isArray(previous.records) ? previous.records : []),
       {
-        participatedAt,
+        participatedAt: participatedAt.display,
+        participatedAtMs: participatedAt.sortValue,
         practiceType,
         accuracy
       }
     ],
     lastPracticeType: practiceType,
-    lastParticipatedAt: participatedAt,
+    lastParticipatedAt: participatedAt.display,
+    lastParticipatedAtMs: participatedAt.sortValue,
     lastAccuracy: accuracy
   };
 
@@ -61,7 +64,7 @@ export async function POST(request) {
     participant: {
       name: participant.name,
       totalCount: participant.totalCount,
-      lastParticipatedAt: participatedAt
+      lastParticipatedAt: participatedAt.display
     }
   });
 }

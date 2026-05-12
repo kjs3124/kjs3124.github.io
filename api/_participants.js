@@ -1,6 +1,7 @@
 import { get, list, put } from "@vercel/blob";
 
 const PARTICIPANTS_PREFIX = "participants/";
+const KOREA_TIME_ZONE = "Asia/Seoul";
 
 export function jsonResponse(data, status = 200) {
   return Response.json(data, {
@@ -28,6 +29,22 @@ export function getAdminCodes() {
 
 export function hasBlobToken() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+export function getKoreaTimestamp(date = new Date()) {
+  return {
+    display: new Intl.DateTimeFormat("ko-KR", {
+      timeZone: KOREA_TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    }).format(date),
+    sortValue: date.getTime()
+  };
 }
 
 export function getParticipantPath(name) {
@@ -97,6 +114,7 @@ export function normalizeParticipant(data) {
     records: Array.isArray(data?.records) ? data.records : [],
     lastPracticeType: data?.lastPracticeType || "",
     lastParticipatedAt: data?.lastParticipatedAt || participationDates[participationDates.length - 1] || "",
+    lastParticipatedAtMs: Number(data?.lastParticipatedAtMs || 0),
     lastAccuracy: Number.isFinite(Number(data?.lastAccuracy)) ? Math.round(Number(data.lastAccuracy)) : null
   };
 }
