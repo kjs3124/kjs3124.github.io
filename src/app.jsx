@@ -1,9 +1,9 @@
 ﻿const { useEffect, useMemo, useRef, useState } = React;
 const {
+  PRONUNCIATION_CATEGORIES,
   PRONUNCIATION_SENTENCES,
-  SPEED_TEXT,
-  SPEED_TARGET_MIN_SECONDS: SPEED_TARGET_MIN_SECONDS_LABEL,
-  SPEED_TARGET_MAX_SECONDS: SPEED_TARGET_MAX_SECONDS_LABEL,
+  SPEED_PRACTICE_TYPES,
+  DEFAULT_SPEED_PRACTICE_TYPE_ID,
   PRONUNCIATION_TIME_LIMIT_SECONDS,
   DEFAULT_PRONUNCIATION_QUESTION_COUNT
 } = window.VoicePracticeConstants;
@@ -24,14 +24,73 @@ const {
   loadAdminSentencesRequest,
   saveAdminSentencesRequest
 } = window.VoicePracticeApi;
+
+const CATEGORY_LABEL_BY_ID = PRONUNCIATION_CATEGORIES.reduce((acc, category) => {
+  acc[category.id] = category.label;
+  return acc;
+}, {});
+
+const CATEGORY_ID_BY_LABEL = PRONUNCIATION_CATEGORIES.reduce((acc, category) => {
+  acc[category.label] = category.id;
+  return acc;
+}, {});
+
+function normalizePronunciationItems(sentences) {
+  const seen = new Set();
+  const items = [];
+
+  (Array.isArray(sentences) ? sentences : []).forEach((sentence) => {
+    const text = typeof sentence === "object" && sentence !== null
+      ? String(sentence.text || "").trim()
+      : String(sentence || "").trim();
+    const rawCategory = typeof sentence === "object" && sentence !== null
+      ? String(sentence.category || "").trim()
+      : "general";
+    const category = CATEGORY_LABEL_BY_ID[rawCategory]
+      ? rawCategory
+      : CATEGORY_ID_BY_LABEL[rawCategory] || "general";
+    const key = `${category}:${text}`;
+
+    if (!text || seen.has(key)) return;
+
+    seen.add(key);
+    items.push({ category, text });
+  });
+
+  return items;
+}
+
+function parseSentenceLine(line) {
+  const trimmed = String(line || "").trim();
+  const match = trimmed.match(/^\[([^\]]+)\]\s*(.+)$/);
+
+  if (!match) {
+    return { category: "general", text: trimmed };
+  }
+
+  const category = CATEGORY_ID_BY_LABEL[match[1].trim()] || "general";
+  return {
+    category,
+    text: match[2].trim()
+  };
+}
+
+function formatSentenceLine(item) {
+  const category = item.category || "general";
+  const label = CATEGORY_LABEL_BY_ID[category] || CATEGORY_LABEL_BY_ID.general;
+  return category === "general" ? item.text : `[${label}] ${item.text}`;
+}
+
 function VoicePracticeSite() {
+        const defaultSentenceItems = useMemo(() => normalizePronunciationItems(PRONUNCIATION_SENTENCES), []);
         const [screen, setScreen] = useState("start");
         const [name, setName] = useState("");
 
         const [activePronunciationSentences, setActivePronunciationSentences] = useState(() =>
           shuffleSentences(PRONUNCIATION_SENTENCES)
         );
-        const [sentencePool, setSentencePool] = useState(PRONUNCIATION_SENTENCES);
+        const [sentencePool, setSentencePool] = useState(() => normalizePronunciationItems(PRONUNCIATION_SENTENCES));
+        const [pronunciationCategory, setPronunciationCategory] = useState("general");
         const [pronunciationIndex, setPronunciationIndex] = useState(0);
         const [pronunciationQuestionCount, setPronunciationQuestionCount] = useState(DEFAULT_PRONUNCIATION_QUESTION_COUNT);
         const [pronunciationTimeLimit, setPronunciationTimeLimit] = useState(PRONUNCIATION_TIME_LIMIT_SECONDS);
@@ -49,6 +108,7 @@ function VoicePracticeSite() {
 
         const [speedSeconds, setSpeedSeconds] = useState(0);
         const [speedCentiseconds, setSpeedCentiseconds] = useState(0);
+        const [selectedSpeedTypeId, setSelectedSpeedTypeId] = useState(DEFAULT_SPEED_PRACTICE_TYPE_ID);
         const [isSpeedRecording, setIsSpeedRecording] = useState(false);
         const [speedRecognizedText, setSpeedRecognizedText] = useState("");
         const [showSpeedDetail, setShowSpeedDetail] = useState(false);
@@ -85,8 +145,15 @@ function VoicePracticeSite() {
           return Math.round(sum / pronunciationResults.length);
         }, [pronunciationResults]);
 
-        const speedResult = useMemo(() => getSpeedResultText(speedSeconds), [speedSeconds]);
-        const sentenceCountMax = Math.max(1, sentencePool.length);
+        const selectedSpeedType = useMemo(() => (
+          SPEED_PRACTICE_TYPES.find((type) => type.id === selectedSpeedTypeId) || SPEED_PRACTICE_TYPES[0]
+        ), [selectedSpeedTypeId]);
+        const speedResult = useMemo(() => getSpeedResultText(speedSeconds, selectedSpeedType), [speedSeconds, selectedSpeedType]);
+        const filteredSentencePool = useMemo(() => {
+          const matched = sentencePool.filter((item) => item.category === pronunciationCategory);
+          return matched.length ? matched : sentencePool.filter((item) => item.category === "general");
+        }, [sentencePool, pronunciationCategory]);
+        const sentenceCountMax = Math.max(1, filteredSentencePool.length);
 
         const formatAccuracy = (accuracy) => (
           typeof accuracy === "number" ? `${accuracy}%` : "-"
@@ -146,17 +213,16 @@ function VoicePracticeSite() {
         const loadPracticeSentences = async () => {
           try {
             const data = await loadPracticeSentencesRequest();
-            const sentences = Array.isArray(data.sentences) && data.sentences.length
-              ? data.sentences
-              : PRONUNCIATION_SENTENCES;
+            const sentences = normalizePronunciationItems(data.sentences);
+            const nextSentences = sentences.length ? sentences : defaultSentenceItems;
 
-            setSentencePool(sentences);
-            setPronunciationQuestionCount((prev) => Math.min(prev, sentences.length));
-            return sentences;
+            setSentencePool(nextSentences);
+            setPronunciationQuestionCount((prev) => Math.min(prev, nextSentences.length));
+            return nextSentences;
           } catch {
-            setSentencePool(PRONUNCIATION_SENTENCES);
-            setPronunciationQuestionCount((prev) => Math.min(prev, PRONUNCIATION_SENTENCES.length));
-            return PRONUNCIATION_SENTENCES;
+            setSentencePool(defaultSentenceItems);
+            setPronunciationQuestionCount((prev) => Math.min(prev, defaultSentenceItems.length));
+            return defaultSentenceItems;
           }
         };
 
@@ -168,11 +234,12 @@ function VoicePracticeSite() {
             const data = await loadAdminSentencesRequest({
               code: name.trim()
             });
-            const sentences = Array.isArray(data.sentences) && data.sentences.length
-              ? data.sentences
+            const loadedSentences = normalizePronunciationItems(data.sentences);
+            const sentences = loadedSentences.length
+              ? loadedSentences
               : sentencePool;
 
-            setAdminSentencesText(sentences.join("\n"));
+            setAdminSentencesText(sentences.map(formatSentenceLine).join("\n"));
             setAdminSentencesMessage(
               data.updatedAt ? `연습 문장을 불러왔습니다. 마지막 수정: ${data.updatedAt}` : "저장된 문장이 없어 현재 기본 문장을 표시합니다."
             );
@@ -187,8 +254,8 @@ function VoicePracticeSite() {
         const saveAdminSentences = async () => {
           const sentences = adminSentencesText
             .split(/\n+/)
-            .map((sentence) => sentence.trim())
-            .filter(Boolean);
+            .map(parseSentenceLine)
+            .filter((sentence) => sentence.text);
 
           setIsAdminSentencesLoading(true);
           setAdminSentencesMessage("");
@@ -198,10 +265,11 @@ function VoicePracticeSite() {
               code: name.trim(),
               sentences
             });
-            const savedSentences = data.sentences || [];
-            setAdminSentencesText(savedSentences.join("\n"));
-            setSentencePool(savedSentences.length ? savedSentences : PRONUNCIATION_SENTENCES);
-            setPronunciationQuestionCount((prev) => Math.min(prev, savedSentences.length || PRONUNCIATION_SENTENCES.length));
+            const savedSentences = normalizePronunciationItems(data.sentences);
+            const nextSentences = savedSentences.length ? savedSentences : defaultSentenceItems;
+            setAdminSentencesText(nextSentences.map(formatSentenceLine).join("\n"));
+            setSentencePool(nextSentences);
+            setPronunciationQuestionCount((prev) => Math.min(prev, nextSentences.length));
             setAdminSentencesMessage(
               data.updatedAt ? `연습 문장이 저장되었습니다. 마지막 수정: ${data.updatedAt}` : "연습 문장이 저장되었습니다."
             );
@@ -441,8 +509,13 @@ function VoicePracticeSite() {
         const beginPronunciationRecording = async () => {
           setRecordMessage("");
           const latestSentences = await loadPracticeSentences();
-          const selectedCount = Math.min(pronunciationQuestionCount, latestSentences.length);
-          const shuffledSentences = shuffleSentences(latestSentences).slice(0, selectedCount);
+          const categorySentences = latestSentences.filter((item) => item.category === pronunciationCategory);
+          const fallbackSentences = latestSentences.filter((item) => item.category === "general");
+          const availableSentences = categorySentences.length ? categorySentences : fallbackSentences;
+          const selectedCount = Math.min(pronunciationQuestionCount, availableSentences.length);
+          const shuffledSentences = shuffleSentences(availableSentences)
+            .slice(0, selectedCount)
+            .map((item) => item.text);
           setActivePronunciationSentences(shuffledSentences);
           setPronunciationResults(
             shuffledSentences.map((sentence, index) => ({
@@ -682,7 +755,7 @@ function VoicePracticeSite() {
                   <div className="mb-8 text-sm font-black text-teal-700">02</div>
                   <div className="text-2xl font-black text-slate-950">속도 연습</div>
                   <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
-                    읽는 시간을 {SPEED_TARGET_MIN_SECONDS_LABEL}-{SPEED_TARGET_MAX_SECONDS_LABEL}초 기준과 비교합니다.
+                    인사, 글쓰기 안내, 발표 경청 중 하나를 골라 읽는 속도를 확인합니다.
                   </p>
                 </button>
                 {isAdminUser && (
@@ -752,14 +825,15 @@ function VoicePracticeSite() {
                 <div className="mb-4">
                   <h3 className="text-xl font-black text-slate-950">연습 문장 관리</h3>
                   <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                    문장은 Vercel Blob의 config/pronunciation-sentences.json에 저장됩니다. 한 줄에 하나씩 입력하세요.
+                    문장은 Vercel Blob의 config/pronunciation-sentences.json에 저장됩니다.
+                    유형은 [일반], [글쓰기 안내], [발표 경청]을 줄 앞에 붙이고, 유형이 없으면 일반 문항으로 저장됩니다.
                   </p>
                 </div>
                 <textarea
                   value={adminSentencesText}
                   onChange={(e) => setAdminSentencesText(e.target.value)}
                   className="min-h-[220px] w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold leading-7 text-slate-950 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                  placeholder="연습 문장을 한 줄에 하나씩 입력하세요."
+                  placeholder={`일반 문장은 그대로 입력하세요.\n[글쓰기 안내] 글쓰기 활동을 시작하기 전 주제를 다시 확인해 봅시다.\n[발표 경청] 친구가 발표할 때는 말하는 사람을 바라봅니다.`}
                 />
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <button
@@ -864,6 +938,32 @@ function VoicePracticeSite() {
               </div>
 
               <div className="mb-8 grid gap-5">
+                <div className="quiet-surface block p-5">
+                  <div className="mb-3 flex items-center justify-between text-sm font-bold text-gray-700">
+                    <span>문항 유형</span>
+                    <span>{CATEGORY_LABEL_BY_ID[pronunciationCategory]}</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {PRONUNCIATION_CATEGORIES.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => {
+                          setPronunciationCategory(category.id);
+                          const nextCount = Math.max(1, sentencePool.filter((item) => item.category === category.id).length);
+                          setPronunciationQuestionCount((prev) => Math.min(prev, nextCount));
+                        }}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
+                          pronunciationCategory === category.id
+                            ? "border-blue-700 bg-blue-700 text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:border-blue-500"
+                        }`}
+                      >
+                        {category.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <label className="quiet-surface block p-5">
                   <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
                     <span>문항 수</span>
@@ -992,9 +1092,31 @@ function VoicePracticeSite() {
                 <p className="text-sm font-black text-teal-700">속도</p>
                 <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
                 <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
-                  문장을 모두 읽은 뒤 종료하면 {SPEED_TARGET_MIN_SECONDS_LABEL}-{SPEED_TARGET_MAX_SECONDS_LABEL}초 기준과 비교합니다.
+                  연습 종류를 고른 뒤 문장을 모두 읽으면 유형별 기준 속도와 비교합니다.
                 </p>
               </div>
+
+              <div className="mb-8 grid gap-3 sm:grid-cols-3">
+                {SPEED_PRACTICE_TYPES.map((type) => (
+                  <button
+                    key={type.id}
+                    onClick={() => setSelectedSpeedTypeId(type.id)}
+                    className={`rounded-2xl border p-5 text-left transition ${
+                      selectedSpeedTypeId === type.id
+                        ? "border-teal-700 bg-teal-700 text-white shadow-lg shadow-teal-100"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-teal-600"
+                    }`}
+                  >
+                    <div className="text-lg font-black">{type.label}</div>
+                    <div className={`mt-2 text-sm font-bold ${
+                      selectedSpeedTypeId === type.id ? "text-teal-50" : "text-slate-500"
+                    }`}>
+                      기준 {type.targetMinSeconds}-{type.targetMaxSeconds}초
+                    </div>
+                  </button>
+                ))}
+              </div>
+
               <div className="mb-8 grid gap-4 sm:grid-cols-3">
                 <div className="quiet-surface p-5">
                   <div className="text-sm font-black text-teal-700">01</div>
@@ -1025,7 +1147,10 @@ function VoicePracticeSite() {
               <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-black text-teal-700">속도 연습</p>
-                  <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
+                  <h2 className="mt-2 text-4xl font-black text-slate-950">{selectedSpeedType.label}</h2>
+                  <p className="mt-2 text-sm font-bold text-slate-500">
+                    기준 {selectedSpeedType.targetMinSeconds}-{selectedSpeedType.targetMaxSeconds}초
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-slate-950 px-5 py-3 text-2xl font-black text-white">
                   {formatRunningTimer(speedCentiseconds)}
@@ -1033,7 +1158,7 @@ function VoicePracticeSite() {
               </div>
 
               <div className="surface p-8 text-xl font-bold leading-10 text-slate-900 whitespace-pre-line">
-                {SPEED_TEXT}
+                {selectedSpeedType.text}
               </div>
 
               {recognitionMessage && (
@@ -1071,6 +1196,7 @@ function VoicePracticeSite() {
               <HomeButton />
               <div className="pt-10 text-center sm:pt-0">
                 <p className="text-sm font-black text-teal-700">결과</p>
+                <p className="mt-2 text-base font-black text-teal-700">{selectedSpeedType.label}</p>
                 <div className="mt-4 text-5xl font-black text-slate-950">{speedResult.title}</div>
                 <div className="mt-4 text-4xl font-black text-teal-700">{formatResultTime(speedSeconds)}</div>
                 <div className="mt-3 text-base font-bold text-slate-500">{speedResult.description}</div>
@@ -1097,7 +1223,7 @@ function VoicePracticeSite() {
                   <p className="text-sm leading-7 mb-4 text-slate-700">
                     <b>녹음한 내용:</b>
                   </p>
-                  <p className="text-sm leading-7 whitespace-pre-line mb-5 text-slate-700">{SPEED_TEXT}</p>
+                  <p className="text-sm leading-7 whitespace-pre-line mb-5 text-slate-700">{selectedSpeedType.text}</p>
                   <p className="text-sm leading-7 mb-4 text-slate-700">
                     <b>ai가 음성인식해서 입력된 문장내용:</b>
                   </p>

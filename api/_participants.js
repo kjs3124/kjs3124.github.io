@@ -4,6 +4,18 @@ const PARTICIPANTS_PREFIX = "participants/";
 const ADMIN_CONFIG_PATH = "config/admin.json";
 const SENTENCE_CONFIG_PATH = "config/pronunciation-sentences.json";
 const KOREA_TIME_ZONE = "Asia/Seoul";
+const SENTENCE_CATEGORY_ALIASES = {
+  general: "general",
+  "일반": "general",
+  greeting: "general",
+  "인사": "general",
+  writing: "writing",
+  "글쓰기": "writing",
+  "글쓰기 안내": "writing",
+  presentation: "presentation",
+  "발표": "presentation",
+  "발표 경청": "presentation"
+};
 
 export function jsonResponse(data, status = 200) {
   return Response.json(data, {
@@ -82,9 +94,27 @@ export async function writeAdminConfig(adminCodes) {
 }
 
 export function normalizeSentences(sentences) {
-  return [...new Set((Array.isArray(sentences) ? sentences : [])
-    .map((sentence) => String(sentence || "").trim())
-    .filter(Boolean))];
+  const seen = new Set();
+  const normalized = [];
+
+  (Array.isArray(sentences) ? sentences : []).forEach((sentence) => {
+    const rawText = typeof sentence === "object" && sentence !== null
+      ? sentence.text
+      : sentence;
+    const text = String(rawText || "").trim();
+    const rawCategory = typeof sentence === "object" && sentence !== null
+      ? sentence.category
+      : "general";
+    const category = SENTENCE_CATEGORY_ALIASES[String(rawCategory || "").trim()] || "general";
+    const key = `${category}:${text}`;
+
+    if (!text || seen.has(key)) return;
+
+    seen.add(key);
+    normalized.push({ category, text });
+  });
+
+  return normalized;
 }
 
 export async function readSentenceConfig() {
