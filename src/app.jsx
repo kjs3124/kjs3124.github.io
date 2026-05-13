@@ -142,11 +142,22 @@ function VoicePracticeSite() {
         const selectedSpeedType = useMemo(() => (
           SPEED_PRACTICE_TYPES.find((type) => type.id === selectedSpeedTypeId) || SPEED_PRACTICE_TYPES[0]
         ), [selectedSpeedTypeId]);
+        const selectedSpeedText = useMemo(() => {
+          const savedText = sentencePool
+            .filter((item) => item.category === selectedSpeedType.id)
+            .map((item) => item.text)
+            .filter(Boolean)
+            .join("\n\n")
+            .trim();
+
+          return savedText || selectedSpeedType.text;
+        }, [sentencePool, selectedSpeedType]);
         const speedResult = useMemo(() => getSpeedResultText(speedSeconds, selectedSpeedType), [speedSeconds, selectedSpeedType]);
         const generalSentencePool = useMemo(() => (
           sentencePool.filter((item) => item.category === "general")
         ), [sentencePool]);
         const sentenceCountMax = Math.max(1, generalSentencePool.length);
+        const isAdminGeneralSentence = adminSentenceCategory === "general";
 
         const formatAccuracy = (accuracy) => (
           typeof accuracy === "number" ? `${accuracy}%` : "-"
@@ -246,14 +257,19 @@ function VoicePracticeSite() {
         };
 
         const saveAdminSentences = async () => {
-          const categorySentences = adminSentencesText
-            .split(/\n\s*\n+/)
-            .map(parseSentenceParagraph)
-            .filter((sentence) => sentence.text)
-            .map((sentence) => ({
+          const categorySentences = isAdminGeneralSentence
+            ? adminSentencesText
+              .split(/\n\s*\n+/)
+              .map(parseSentenceParagraph)
+              .filter((sentence) => sentence.text)
+              .map((sentence) => ({
+                category: adminSentenceCategory,
+                text: sentence.text
+              }))
+            : [{
               category: adminSentenceCategory,
-              text: sentence.text
-            }));
+              text: adminSentencesText.trim()
+            }].filter((sentence) => sentence.text);
           const sentences = [
             ...sentencePool.filter((sentence) => sentence.category !== adminSentenceCategory),
             ...categorySentences
@@ -825,7 +841,9 @@ function VoicePracticeSite() {
                 <div className="mb-4">
                   <h3 className="text-xl font-black text-slate-950">연습 문장 관리</h3>
                   <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                    유형을 선택한 뒤 문단 단위로 입력하세요. 문단은 빈 줄로 구분됩니다.
+                    {isAdminGeneralSentence
+                      ? "일반 문항은 문단 단위로 입력하세요. 문단은 빈 줄로 구분됩니다."
+                      : "속도 연습 문항은 입력한 전체 내용을 그대로 사용합니다."}
                   </p>
                 </div>
                 <div className="mb-4 grid gap-3 sm:grid-cols-3">
@@ -851,7 +869,11 @@ function VoicePracticeSite() {
                   value={adminSentencesText}
                   onChange={(e) => setAdminSentencesText(e.target.value)}
                   className="min-h-[220px] w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold leading-7 text-slate-950 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                  placeholder={`${CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 문장을 문단 단위로 입력하세요.\n\n문단 사이에는 빈 줄을 넣어 구분합니다.`}
+                  placeholder={
+                    isAdminGeneralSentence
+                      ? `${CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 문장을 문단 단위로 입력하세요.\n\n문단 사이에는 빈 줄을 넣어 구분합니다.`
+                      : `${CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 속도 연습에 사용할 전체 내용을 입력하세요.`
+                  }
                 />
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <button
@@ -1150,7 +1172,7 @@ function VoicePracticeSite() {
               </div>
 
               <div className="surface p-8 text-xl font-bold leading-10 text-slate-900 whitespace-pre-line">
-                {selectedSpeedType.text}
+                {selectedSpeedText}
               </div>
 
               {recognitionMessage && (
@@ -1215,7 +1237,7 @@ function VoicePracticeSite() {
                   <p className="text-sm leading-7 mb-4 text-slate-700">
                     <b>녹음한 내용:</b>
                   </p>
-                  <p className="text-sm leading-7 whitespace-pre-line mb-5 text-slate-700">{selectedSpeedType.text}</p>
+                  <p className="text-sm leading-7 whitespace-pre-line mb-5 text-slate-700">{selectedSpeedText}</p>
                   <p className="text-sm leading-7 mb-4 text-slate-700">
                     <b>ai가 음성인식해서 입력된 문장내용:</b>
                   </p>
