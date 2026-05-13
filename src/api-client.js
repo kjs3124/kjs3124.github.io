@@ -27,8 +27,22 @@ function checkAdminAccessRequest({ name }) {
   return postJson("/api/admin-access", { name });
 }
 
+function loadAdminConfigRequest({ code }) {
+  return postJson("/api/admin-config", { code });
+}
+
+function saveAdminConfigRequest({ code, adminCodes }) {
+  return postJson("/api/admin-config", {
+    code,
+    adminCodes,
+    action: "save"
+  });
+}
+
 window.VoicePracticeApi = {
   recordParticipationRequest,
   loadAdminParticipantsRequest,
-  checkAdminAccessRequest
+  checkAdminAccessRequest,
+  loadAdminConfigRequest,
+  saveAdminConfigRequest
 };

@@ -19,22 +19,38 @@ function normalizeText(text) {
     .trim();
 }
 
+function getLevenshteinDistance(source, target) {
+  const rows = source.length + 1;
+  const cols = target.length + 1;
+  const matrix = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+  for (let i = 0; i < rows; i += 1) matrix[i][0] = i;
+  for (let j = 0; j < cols; j += 1) matrix[0][j] = j;
+
+  for (let i = 1; i < rows; i += 1) {
+    for (let j = 1; j < cols; j += 1) {
+      const cost = source[i - 1] === target[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+
+  return matrix[source.length][target.length];
+}
+
 function calculateSentenceAccuracy(expected, recognized) {
-  const e = normalizeText(expected);
-  const r = normalizeText(recognized);
+  const e = normalizeText(expected).replace(/\s/g, "");
+  const r = normalizeText(recognized).replace(/\s/g, "");
 
   if (!e || !r) return 0;
   if (e === r) return 100;
 
-  const eWords = e.split(" ");
-  const rWords = r.split(" ");
-  let matched = 0;
-
-  eWords.forEach((word, idx) => {
-    if (rWords[idx] === word) matched += 1;
-  });
-
-  return Math.round((matched / eWords.length) * 100);
+  const distance = getLevenshteinDistance(e, r);
+  const accuracy = (1 - distance / Math.max(e.length, r.length)) * 100;
+  return Math.max(0, Math.round(accuracy));
 }
 
 function formatResultTime(totalSeconds) {
@@ -79,6 +95,7 @@ function runSelfTests() {
   console.assert(formatRunningTimer(6150) === "01:01.500", "timer 6150 failed");
   console.assert(formatResultTime(65) === "01초 05", "result time failed");
   console.assert(calculateSentenceAccuracy("안녕 하세요", "안녕 하세요") === 100, "accuracy exact failed");
+  console.assert(calculateSentenceAccuracy("우리 친구들 선생님 얼굴", "우리 친구 선생님 얼굴") >= 80, "accuracy fuzzy failed");
   console.assert(getSpeedResultText(62).title === "아주 적절하다!!", "speed equal range failed");
   console.assert(getSpeedResultText(50).title === "조금 빠르다..!", "speed fast failed");
   console.assert(getSpeedResultText(80).title === "조금 느리다..!", "speed slow failed");

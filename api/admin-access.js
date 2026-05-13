@@ -1,9 +1,9 @@
-import { getAdminCodes, jsonResponse, readJsonBody } from "./_participants.js";
+import { getEffectiveAdminCodes, jsonResponse, readJsonBody } from "./_participants.js";
 
 export async function POST(request) {
   const body = await readJsonBody(request);
   const name = String(body.name || "").trim();
-  const adminCodes = getAdminCodes();
+  const adminCodes = await getEffectiveAdminCodes();
 
   return jsonResponse({
     ok: true,

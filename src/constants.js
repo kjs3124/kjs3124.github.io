@@ -21,6 +21,6 @@ window.VoicePracticeConstants = {
 대상간의 공통점과 차이점을 찾는 비교와 대조에 대해 알아보고,
 이 방법으로 새로운 놀이 기구를 생각해 발표를 해 볼 거예요.`,
   AVERAGE_SPEED_SECONDS: 65,
-  PRONUNCIATION_TIME_LIMIT_SECONDS: 8,
+  PRONUNCIATION_TIME_LIMIT_SECONDS: 10,
   DEFAULT_PRONUNCIATION_QUESTION_COUNT: 10
 };

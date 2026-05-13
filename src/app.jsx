@@ -15,7 +15,9 @@ const {
 const {
   recordParticipationRequest,
   loadAdminParticipantsRequest,
-  checkAdminAccessRequest
+  checkAdminAccessRequest,
+  loadAdminConfigRequest,
+  saveAdminConfigRequest
 } = window.VoicePracticeApi;
 function VoicePracticeSite() {
         const [screen, setScreen] = useState("start");
@@ -50,6 +52,9 @@ function VoicePracticeSite() {
         const [adminMessage, setAdminMessage] = useState("");
         const [adminParticipants, setAdminParticipants] = useState([]);
         const [isAdminLoading, setIsAdminLoading] = useState(false);
+        const [adminConfigMessage, setAdminConfigMessage] = useState("");
+        const [adminCodesText, setAdminCodesText] = useState("");
+        const [isAdminConfigLoading, setIsAdminConfigLoading] = useState(false);
         const [isAdminUser, setIsAdminUser] = useState(false);
         const [micLevel, setMicLevel] = useState(0);
         const [micMessage, setMicMessage] = useState("");
@@ -60,6 +65,7 @@ function VoicePracticeSite() {
         const micStreamRef = useRef(null);
         const micAudioContextRef = useRef(null);
         const micAnimationFrameRef = useRef(null);
+        const finalTranscriptRef = useRef("");
 
         const displayUserName = name.trim() ? `${name.trim()}님` : "사용자";
         const menuTitle = `${displayUserName}의 연습`;
@@ -101,6 +107,57 @@ function VoicePracticeSite() {
           } finally {
             setIsAdminLoading(false);
           }
+        };
+
+        const loadAdminConfig = async () => {
+          setIsAdminConfigLoading(true);
+          setAdminConfigMessage("");
+
+          try {
+            const data = await loadAdminConfigRequest({
+              code: name.trim()
+            });
+            setAdminCodesText((data.adminCodes || []).join("\n"));
+            setAdminConfigMessage(
+              data.updatedAt ? `관리자 코드를 불러왔습니다. 마지막 수정: ${data.updatedAt}` : "관리자 코드를 불러왔습니다."
+            );
+          } catch (error) {
+            setAdminCodesText("");
+            setAdminConfigMessage(error.message || "관리자 코드 설정을 불러오지 못했습니다.");
+          } finally {
+            setIsAdminConfigLoading(false);
+          }
+        };
+
+        const saveAdminConfig = async () => {
+          const adminCodes = adminCodesText
+            .split(/[\n,]+/)
+            .map((code) => code.trim())
+            .filter(Boolean);
+
+          setIsAdminConfigLoading(true);
+          setAdminConfigMessage("");
+
+          try {
+            const data = await saveAdminConfigRequest({
+              code: name.trim(),
+              adminCodes
+            });
+            setAdminCodesText((data.adminCodes || []).join("\n"));
+            setIsAdminUser((data.adminCodes || []).includes(name.trim()));
+            setAdminConfigMessage(
+              data.updatedAt ? `관리자 코드가 저장되었습니다. 마지막 수정: ${data.updatedAt}` : "관리자 코드가 저장되었습니다."
+            );
+          } catch (error) {
+            setAdminConfigMessage(error.message || "관리자 코드 저장에 실패했습니다.");
+          } finally {
+            setIsAdminConfigLoading(false);
+          }
+        };
+
+        const openAdminScreen = () => {
+          setScreen("admin");
+          loadAdminConfig();
         };
 
         const enterPracticeMenu = async () => {
@@ -224,6 +281,7 @@ function VoicePracticeSite() {
           }
 
           stopRecognition();
+          finalTranscriptRef.current = "";
           setRecognitionMessage("");
 
           const recognition = new SpeechRecognition();
@@ -232,12 +290,17 @@ function VoicePracticeSite() {
           recognition.interimResults = true;
 
           recognition.onresult = (event) => {
-            let transcript = "";
-            for (let i = 0; i < event.results.length; i += 1) {
-              transcript += `${event.results[i][0].transcript} `;
+            let interimTranscript = "";
+            for (let i = event.resultIndex; i < event.results.length; i += 1) {
+              const transcript = event.results[i][0].transcript.trim();
+              if (event.results[i].isFinal) {
+                finalTranscriptRef.current = `${finalTranscriptRef.current} ${transcript}`.trim();
+              } else {
+                interimTranscript = `${interimTranscript} ${transcript}`.trim();
+              }
             }
 
-            const finalText = transcript.trim();
+            const finalText = `${finalTranscriptRef.current} ${interimTranscript}`.trim();
 
             if (mode === "pronunciation") {
               setPronunciationResults((prev) =>
@@ -533,7 +596,7 @@ function VoicePracticeSite() {
                 </button>
                 {isAdminUser && (
                   <button
-                    onClick={() => setScreen("admin")}
+                    onClick={openAdminScreen}
                     className="surface p-6 text-left hover:border-slate-900 sm:col-span-2"
                   >
                     <div className="mb-5 text-sm font-black text-slate-500">관리</div>
@@ -553,7 +616,45 @@ function VoicePracticeSite() {
               <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
                 <p className="text-sm font-black text-slate-500">관리자</p>
                 <h2 className="mt-2 text-4xl font-black text-slate-950">관리자 페이지</h2>
-                <p className="mt-3 text-sm font-bold text-slate-500">참여자별 누적 기록을 확인합니다.</p>
+                <p className="mt-3 text-sm font-bold text-slate-500">관리자 코드와 참여자별 누적 기록을 확인합니다.</p>
+              </div>
+
+              <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-4">
+                  <h3 className="text-xl font-black text-slate-950">관리자 코드 관리</h3>
+                  <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
+                    코드는 Vercel Blob의 config/admin.json에 저장됩니다. 한 줄에 하나씩 입력하세요.
+                  </p>
+                </div>
+                <textarea
+                  value={adminCodesText}
+                  onChange={(e) => setAdminCodesText(e.target.value)}
+                  className="min-h-[140px] w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold text-slate-950 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                  placeholder="19001088"
+                />
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <button
+                    onClick={loadAdminConfig}
+                    disabled={isAdminConfigLoading}
+                    className={`btn text-base ${
+                      isAdminConfigLoading ? "btn-muted" : "border border-slate-300 bg-white text-slate-950 hover:bg-slate-50"
+                    }`}
+                  >
+                    다시 불러오기
+                  </button>
+                  <button
+                    onClick={saveAdminConfig}
+                    disabled={isAdminConfigLoading}
+                    className={`btn text-base ${
+                      isAdminConfigLoading ? "btn-muted" : "btn-primary"
+                    }`}
+                  >
+                    관리자 코드 저장
+                  </button>
+                </div>
+                {adminConfigMessage && (
+                  <p className="mt-4 text-sm font-bold text-slate-600">{adminConfigMessage}</p>
+                )}
               </div>
 
               <div>

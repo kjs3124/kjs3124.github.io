@@ -1,9 +1,9 @@
-import { getAdminCodes, hasBlobToken, jsonResponse, listParticipants, readJsonBody } from "./_participants.js";
+import { getEffectiveAdminCodes, hasBlobToken, jsonResponse, listParticipants, readJsonBody } from "./_participants.js";
 
 export async function POST(request) {
   const body = await readJsonBody(request);
   const code = String(body.code || "").trim();
-  const adminCodes = getAdminCodes();
+  const adminCodes = await getEffectiveAdminCodes();
 
   if (!hasBlobToken()) {
     return jsonResponse({ ok: false, message: "Blob 저장소 토큰이 서버에 설정되지 않았습니다." }, 500);

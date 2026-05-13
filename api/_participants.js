@@ -1,6 +1,7 @@
 import { get, list, put } from "@vercel/blob";
 
 const PARTICIPANTS_PREFIX = "participants/";
+const ADMIN_CONFIG_PATH = "config/admin.json";
 const KOREA_TIME_ZONE = "Asia/Seoul";
 
 export function jsonResponse(data, status = 200) {
@@ -25,6 +26,58 @@ export function getAdminCodes() {
     .split(",")
     .map((code) => code.trim())
     .filter(Boolean);
+}
+
+export function normalizeAdminCodes(codes) {
+  return [...new Set((Array.isArray(codes) ? codes : [])
+    .map((code) => String(code || "").trim())
+    .filter(Boolean))];
+}
+
+export async function readAdminConfig() {
+  try {
+    const blob = await get(ADMIN_CONFIG_PATH, { access: "private" });
+    if (!blob || blob.statusCode !== 200 || !blob.stream) return null;
+
+    const text = await new Response(blob.stream).text();
+    const data = JSON.parse(text);
+    return {
+      adminCodes: normalizeAdminCodes(data?.adminCodes),
+      updatedAt: data?.updatedAt || ""
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getEffectiveAdminCodes() {
+  const config = await readAdminConfig();
+  if (config?.adminCodes?.length) return config.adminCodes;
+  return getAdminCodes();
+}
+
+export async function writeAdminConfig(adminCodes) {
+  const normalizedCodes = normalizeAdminCodes(adminCodes);
+
+  if (!normalizedCodes.length) {
+    throw new Error("관리자 코드는 최소 1개 이상 필요합니다.");
+  }
+
+  const { display, sortValue } = getKoreaTimestamp();
+  await put(ADMIN_CONFIG_PATH, JSON.stringify({
+    adminCodes: normalizedCodes,
+    updatedAt: display,
+    updatedAtMs: sortValue
+  }, null, 2), {
+    access: "private",
+    contentType: "application/json",
+    allowOverwrite: true
+  });
+
+  return {
+    adminCodes: normalizedCodes,
+    updatedAt: display
+  };
 }
 
 export function hasBlobToken() {
