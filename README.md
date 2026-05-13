@@ -9,4 +9,5 @@
 
 - 참여 기록: Vercel Blob의 `participants/{이름}.json`
 - 관리자 코드: Vercel Blob의 `config/admin.json`
+- 발음 연습 문장: Vercel Blob의 `config/pronunciation-sentences.json`
 - 관리자 페이지는 `participants/` 하위 JSON 목록을 읽어서 표시

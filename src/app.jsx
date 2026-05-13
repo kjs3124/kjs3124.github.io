@@ -19,7 +19,10 @@ const {
   loadAdminParticipantsRequest,
   checkAdminAccessRequest,
   loadAdminConfigRequest,
-  saveAdminConfigRequest
+  saveAdminConfigRequest,
+  loadPracticeSentencesRequest,
+  loadAdminSentencesRequest,
+  saveAdminSentencesRequest
 } = window.VoicePracticeApi;
 function VoicePracticeSite() {
         const [screen, setScreen] = useState("start");
@@ -28,6 +31,7 @@ function VoicePracticeSite() {
         const [activePronunciationSentences, setActivePronunciationSentences] = useState(() =>
           shuffleSentences(PRONUNCIATION_SENTENCES)
         );
+        const [sentencePool, setSentencePool] = useState(PRONUNCIATION_SENTENCES);
         const [pronunciationIndex, setPronunciationIndex] = useState(0);
         const [pronunciationQuestionCount, setPronunciationQuestionCount] = useState(DEFAULT_PRONUNCIATION_QUESTION_COUNT);
         const [pronunciationTimeLimit, setPronunciationTimeLimit] = useState(PRONUNCIATION_TIME_LIMIT_SECONDS);
@@ -57,6 +61,9 @@ function VoicePracticeSite() {
         const [adminConfigMessage, setAdminConfigMessage] = useState("");
         const [adminCodesText, setAdminCodesText] = useState("");
         const [isAdminConfigLoading, setIsAdminConfigLoading] = useState(false);
+        const [adminSentencesMessage, setAdminSentencesMessage] = useState("");
+        const [adminSentencesText, setAdminSentencesText] = useState("");
+        const [isAdminSentencesLoading, setIsAdminSentencesLoading] = useState(false);
         const [isAdminUser, setIsAdminUser] = useState(false);
         const [micLevel, setMicLevel] = useState(0);
         const [micMessage, setMicMessage] = useState("");
@@ -79,6 +86,7 @@ function VoicePracticeSite() {
         }, [pronunciationResults]);
 
         const speedResult = useMemo(() => getSpeedResultText(speedSeconds), [speedSeconds]);
+        const sentenceCountMax = Math.max(1, sentencePool.length);
 
         const formatAccuracy = (accuracy) => (
           typeof accuracy === "number" ? `${accuracy}%` : "-"
@@ -135,6 +143,75 @@ function VoicePracticeSite() {
           }
         };
 
+        const loadPracticeSentences = async () => {
+          try {
+            const data = await loadPracticeSentencesRequest();
+            const sentences = Array.isArray(data.sentences) && data.sentences.length
+              ? data.sentences
+              : PRONUNCIATION_SENTENCES;
+
+            setSentencePool(sentences);
+            setPronunciationQuestionCount((prev) => Math.min(prev, sentences.length));
+            return sentences;
+          } catch {
+            setSentencePool(PRONUNCIATION_SENTENCES);
+            setPronunciationQuestionCount((prev) => Math.min(prev, PRONUNCIATION_SENTENCES.length));
+            return PRONUNCIATION_SENTENCES;
+          }
+        };
+
+        const loadAdminSentences = async () => {
+          setIsAdminSentencesLoading(true);
+          setAdminSentencesMessage("");
+
+          try {
+            const data = await loadAdminSentencesRequest({
+              code: name.trim()
+            });
+            const sentences = Array.isArray(data.sentences) && data.sentences.length
+              ? data.sentences
+              : sentencePool;
+
+            setAdminSentencesText(sentences.join("\n"));
+            setAdminSentencesMessage(
+              data.updatedAt ? `연습 문장을 불러왔습니다. 마지막 수정: ${data.updatedAt}` : "저장된 문장이 없어 현재 기본 문장을 표시합니다."
+            );
+          } catch (error) {
+            setAdminSentencesText("");
+            setAdminSentencesMessage(error.message || "연습 문장을 불러오지 못했습니다.");
+          } finally {
+            setIsAdminSentencesLoading(false);
+          }
+        };
+
+        const saveAdminSentences = async () => {
+          const sentences = adminSentencesText
+            .split(/\n+/)
+            .map((sentence) => sentence.trim())
+            .filter(Boolean);
+
+          setIsAdminSentencesLoading(true);
+          setAdminSentencesMessage("");
+
+          try {
+            const data = await saveAdminSentencesRequest({
+              code: name.trim(),
+              sentences
+            });
+            const savedSentences = data.sentences || [];
+            setAdminSentencesText(savedSentences.join("\n"));
+            setSentencePool(savedSentences.length ? savedSentences : PRONUNCIATION_SENTENCES);
+            setPronunciationQuestionCount((prev) => Math.min(prev, savedSentences.length || PRONUNCIATION_SENTENCES.length));
+            setAdminSentencesMessage(
+              data.updatedAt ? `연습 문장이 저장되었습니다. 마지막 수정: ${data.updatedAt}` : "연습 문장이 저장되었습니다."
+            );
+          } catch (error) {
+            setAdminSentencesMessage(error.message || "연습 문장 저장에 실패했습니다.");
+          } finally {
+            setIsAdminSentencesLoading(false);
+          }
+        };
+
         const saveAdminConfig = async () => {
           const adminCodes = adminCodesText
             .split(/[\n,]+/)
@@ -164,6 +241,7 @@ function VoicePracticeSite() {
         const openAdminScreen = () => {
           setScreen("admin");
           loadAdminConfig();
+          loadAdminSentences();
         };
 
         const enterPracticeMenu = async () => {
@@ -360,10 +438,11 @@ function VoicePracticeSite() {
           }
         };
 
-        const beginPronunciationRecording = () => {
+        const beginPronunciationRecording = async () => {
           setRecordMessage("");
-          const selectedCount = Math.min(pronunciationQuestionCount, PRONUNCIATION_SENTENCES.length);
-          const shuffledSentences = shuffleSentences(PRONUNCIATION_SENTENCES).slice(0, selectedCount);
+          const latestSentences = await loadPracticeSentences();
+          const selectedCount = Math.min(pronunciationQuestionCount, latestSentences.length);
+          const shuffledSentences = shuffleSentences(latestSentences).slice(0, selectedCount);
           setActivePronunciationSentences(shuffledSentences);
           setPronunciationResults(
             shuffledSentences.map((sentence, index) => ({
@@ -442,6 +521,10 @@ function VoicePracticeSite() {
             setScreen("speed-result");
           }, 1000);
         };
+
+        useEffect(() => {
+          loadPracticeSentences();
+        }, []);
 
         useEffect(() => {
           if (screen !== "pronunciation-recording" || !isPronunciationRecording) return undefined;
@@ -608,8 +691,8 @@ function VoicePracticeSite() {
                     className="surface p-6 text-left hover:border-slate-900 sm:col-span-2"
                   >
                     <div className="mb-5 text-sm font-black text-slate-500">관리</div>
-                    <div className="text-xl font-black text-slate-950">참여 기록 관리</div>
-                    <p className="mt-2 text-sm font-bold leading-6 text-slate-500">이름, 참여횟수, 인식률, 참여일자를 조회합니다.</p>
+                    <div className="text-xl font-black text-slate-950">관리자 페이지</div>
+                    <p className="mt-2 text-sm font-bold leading-6 text-slate-500">관리자 코드와 참여 기록을 관리합니다.</p>
                   </button>
                 )}
               </div>
@@ -624,7 +707,7 @@ function VoicePracticeSite() {
               <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
                 <p className="text-sm font-black text-slate-500">관리자</p>
                 <h2 className="mt-2 text-4xl font-black text-slate-950">관리자 페이지</h2>
-                <p className="mt-3 text-sm font-bold text-slate-500">관리자 코드와 참여자별 누적 기록을 확인합니다.</p>
+                <p className="mt-3 text-sm font-bold text-slate-500">관리자 코드, 연습 문장, 참여자별 누적 기록을 확인합니다.</p>
               </div>
 
               <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -662,6 +745,44 @@ function VoicePracticeSite() {
                 </div>
                 {adminConfigMessage && (
                   <p className="mt-4 text-sm font-bold text-slate-600">{adminConfigMessage}</p>
+                )}
+              </div>
+
+              <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-4">
+                  <h3 className="text-xl font-black text-slate-950">연습 문장 관리</h3>
+                  <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
+                    문장은 Vercel Blob의 config/pronunciation-sentences.json에 저장됩니다. 한 줄에 하나씩 입력하세요.
+                  </p>
+                </div>
+                <textarea
+                  value={adminSentencesText}
+                  onChange={(e) => setAdminSentencesText(e.target.value)}
+                  className="min-h-[220px] w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold leading-7 text-slate-950 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                  placeholder="연습 문장을 한 줄에 하나씩 입력하세요."
+                />
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <button
+                    onClick={loadAdminSentences}
+                    disabled={isAdminSentencesLoading}
+                    className={`btn text-base ${
+                      isAdminSentencesLoading ? "btn-muted" : "border border-slate-300 bg-white text-slate-950 hover:bg-slate-50"
+                    }`}
+                  >
+                    문장 다시 불러오기
+                  </button>
+                  <button
+                    onClick={saveAdminSentences}
+                    disabled={isAdminSentencesLoading}
+                    className={`btn text-base ${
+                      isAdminSentencesLoading ? "btn-muted" : "btn-primary"
+                    }`}
+                  >
+                    연습 문장 저장
+                  </button>
+                </div>
+                {adminSentencesMessage && (
+                  <p className="mt-4 text-sm font-bold text-slate-600">{adminSentencesMessage}</p>
                 )}
               </div>
 
@@ -751,7 +872,7 @@ function VoicePracticeSite() {
                   <input
                     type="range"
                     min="1"
-                    max={PRONUNCIATION_SENTENCES.length}
+                    max={sentenceCountMax}
                     step="1"
                     value={pronunciationQuestionCount}
                     onChange={(e) => setPronunciationQuestionCount(Number(e.target.value))}

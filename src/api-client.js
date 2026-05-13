@@ -15,6 +15,22 @@ async function postJson(url, payload) {
   return data;
 }
 
+async function getJson(url) {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json"
+    }
+  });
+  const data = await response.json();
+
+  if (!response.ok || !data.ok) {
+    throw new Error(data.message || "서버 요청에 실패했습니다.");
+  }
+
+  return data;
+}
+
 function recordParticipationRequest({ name, practiceType, accuracy }) {
   return postJson("/api/record", { name, practiceType, accuracy });
 }
@@ -39,10 +55,29 @@ function saveAdminConfigRequest({ code, adminCodes }) {
   });
 }
 
+function loadPracticeSentencesRequest() {
+  return getJson("/api/sentences");
+}
+
+function loadAdminSentencesRequest({ code }) {
+  return postJson("/api/sentences", { code });
+}
+
+function saveAdminSentencesRequest({ code, sentences }) {
+  return postJson("/api/sentences", {
+    code,
+    sentences,
+    action: "save"
+  });
+}
+
 window.VoicePracticeApi = {
   recordParticipationRequest,
   loadAdminParticipantsRequest,
   checkAdminAccessRequest,
   loadAdminConfigRequest,
-  saveAdminConfigRequest
+  saveAdminConfigRequest,
+  loadPracticeSentencesRequest,
+  loadAdminSentencesRequest,
+  saveAdminSentencesRequest
 };

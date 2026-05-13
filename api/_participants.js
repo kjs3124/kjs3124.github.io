@@ -2,6 +2,7 @@ import { get, list, put } from "@vercel/blob";
 
 const PARTICIPANTS_PREFIX = "participants/";
 const ADMIN_CONFIG_PATH = "config/admin.json";
+const SENTENCE_CONFIG_PATH = "config/pronunciation-sentences.json";
 const KOREA_TIME_ZONE = "Asia/Seoul";
 
 export function jsonResponse(data, status = 200) {
@@ -76,6 +77,52 @@ export async function writeAdminConfig(adminCodes) {
 
   return {
     adminCodes: normalizedCodes,
+    updatedAt: display
+  };
+}
+
+export function normalizeSentences(sentences) {
+  return [...new Set((Array.isArray(sentences) ? sentences : [])
+    .map((sentence) => String(sentence || "").trim())
+    .filter(Boolean))];
+}
+
+export async function readSentenceConfig() {
+  try {
+    const blob = await get(SENTENCE_CONFIG_PATH, { access: "private" });
+    if (!blob || blob.statusCode !== 200 || !blob.stream) return null;
+
+    const text = await new Response(blob.stream).text();
+    const data = JSON.parse(text);
+    return {
+      sentences: normalizeSentences(data?.sentences),
+      updatedAt: data?.updatedAt || ""
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function writeSentenceConfig(sentences) {
+  const normalizedSentences = normalizeSentences(sentences);
+
+  if (!normalizedSentences.length) {
+    throw new Error("연습 문장은 최소 1개 이상 필요합니다.");
+  }
+
+  const { display, sortValue } = getKoreaTimestamp();
+  await put(SENTENCE_CONFIG_PATH, JSON.stringify({
+    sentences: normalizedSentences,
+    updatedAt: display,
+    updatedAtMs: sortValue
+  }, null, 2), {
+    access: "private",
+    contentType: "application/json",
+    allowOverwrite: true
+  });
+
+  return {
+    sentences: normalizedSentences,
     updatedAt: display
   };
 }
