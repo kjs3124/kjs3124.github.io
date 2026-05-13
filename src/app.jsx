@@ -2,8 +2,8 @@
 const {
   PRONUNCIATION_SENTENCES,
   SPEED_TEXT,
-  SPEED_TARGET_MIN_SECONDS,
-  SPEED_TARGET_MAX_SECONDS,
+  SPEED_TARGET_MIN_SECONDS: SPEED_TARGET_MIN_SECONDS_LABEL,
+  SPEED_TARGET_MAX_SECONDS: SPEED_TARGET_MAX_SECONDS_LABEL,
   PRONUNCIATION_TIME_LIMIT_SECONDS,
   DEFAULT_PRONUNCIATION_QUESTION_COUNT
 } = window.VoicePracticeConstants;
@@ -79,6 +79,10 @@ function VoicePracticeSite() {
         }, [pronunciationResults]);
 
         const speedResult = useMemo(() => getSpeedResultText(speedSeconds), [speedSeconds]);
+
+        const formatAccuracy = (accuracy) => (
+          typeof accuracy === "number" ? `${accuracy}%` : "-"
+        );
 
         const recordParticipation = async (practiceType) => {
           try {
@@ -595,7 +599,7 @@ function VoicePracticeSite() {
                   <div className="mb-8 text-sm font-black text-teal-700">02</div>
                   <div className="text-2xl font-black text-slate-950">속도 연습</div>
                   <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
-                    읽는 시간을 {SPEED_TARGET_MIN_SECONDS}-{SPEED_TARGET_MAX_SECONDS}초 기준과 비교합니다.
+                    읽는 시간을 {SPEED_TARGET_MIN_SECONDS_LABEL}-{SPEED_TARGET_MAX_SECONDS_LABEL}초 기준과 비교합니다.
                   </p>
                 </button>
                 {isAdminUser && (
@@ -676,11 +680,11 @@ function VoicePracticeSite() {
               {adminMessage && <p className="mt-4 text-center text-sm font-bold text-gray-600">{adminMessage}</p>}
 
               <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="min-w-[820px]">
-                  <div className="grid grid-cols-[1fr_110px_110px_2fr] bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
+                <div className="min-w-[980px]">
+                  <div className="grid grid-cols-[1fr_110px_300px_2fr] bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
                     <div>이름</div>
                     <div>총 참여횟수</div>
-                    <div>최근 인식률</div>
+                    <div>인식률</div>
                     <div>참여일자</div>
                   </div>
 
@@ -690,12 +694,27 @@ function VoicePracticeSite() {
                     adminParticipants.map((participant) => (
                       <div
                         key={participant.name}
-                        className="grid grid-cols-[1fr_110px_110px_2fr] gap-3 border-t border-slate-200 px-4 py-4 text-sm text-slate-700"
+                        className="grid grid-cols-[1fr_110px_300px_2fr] gap-3 border-t border-slate-200 px-4 py-4 text-sm text-slate-700"
                       >
                         <div className="font-black text-slate-950">{participant.name}</div>
                         <div className="font-bold">{participant.totalCount}회</div>
-                        <div className="font-bold">
-                          {typeof participant.lastAccuracy === "number" ? `${participant.lastAccuracy}%` : "-"}
+                        <div className="grid grid-cols-4 gap-2 font-bold">
+                          <div>
+                            <div className="text-xs text-slate-400">최근</div>
+                            <div>{formatAccuracy(participant.accuracyStats?.recent ?? participant.lastAccuracy)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-400">최고</div>
+                            <div>{formatAccuracy(participant.accuracyStats?.highest)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-400">최저</div>
+                            <div>{formatAccuracy(participant.accuracyStats?.lowest)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-400">평균</div>
+                            <div>{formatAccuracy(participant.accuracyStats?.average)}</div>
+                          </div>
                         </div>
                         <div className="leading-6">
                           {(participant.participationDates || []).map((date) => (
@@ -852,7 +871,7 @@ function VoicePracticeSite() {
                 <p className="text-sm font-black text-teal-700">속도</p>
                 <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
                 <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
-                  문장을 모두 읽은 뒤 종료하면 {SPEED_TARGET_MIN_SECONDS}-{SPEED_TARGET_MAX_SECONDS}초 기준과 비교합니다.
+                  문장을 모두 읽은 뒤 종료하면 {SPEED_TARGET_MIN_SECONDS_LABEL}-{SPEED_TARGET_MAX_SECONDS_LABEL}초 기준과 비교합니다.
                 </p>
               </div>
               <div className="mb-8 grid gap-4 sm:grid-cols-3">

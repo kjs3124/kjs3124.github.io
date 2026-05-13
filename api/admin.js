@@ -1,5 +1,36 @@
 import { getEffectiveAdminCodes, hasBlobToken, jsonResponse, listParticipants, readJsonBody } from "./_participants.js";
 
+function getAccuracyStats(participant) {
+  const recordAccuracies = (Array.isArray(participant.records) ? participant.records : [])
+    .filter((record) => record?.accuracy !== null && record?.accuracy !== undefined && record?.accuracy !== "")
+    .map((record) => Number(record.accuracy))
+    .filter((accuracy) => Number.isFinite(accuracy));
+
+  const accuracies = recordAccuracies.length
+    ? recordAccuracies
+    : Number.isFinite(Number(participant.lastAccuracy))
+      ? [Number(participant.lastAccuracy)]
+      : [];
+
+  if (!accuracies.length) {
+    return {
+      recent: null,
+      highest: null,
+      lowest: null,
+      average: null
+    };
+  }
+
+  const sum = accuracies.reduce((acc, accuracy) => acc + accuracy, 0);
+
+  return {
+    recent: Math.round(accuracies[accuracies.length - 1]),
+    highest: Math.round(Math.max(...accuracies)),
+    lowest: Math.round(Math.min(...accuracies)),
+    average: Math.round(sum / accuracies.length)
+  };
+}
+
 export async function POST(request) {
   const body = await readJsonBody(request);
   const code = String(body.code || "").trim();
@@ -18,18 +49,21 @@ export async function POST(request) {
   }
 
   const participants = (await listParticipants())
-    .map((participant) => ({
-      name: participant.name,
-      totalCount: Number(participant.totalCount || 0),
-      participationDates: Array.isArray(participant.participationDates)
-        ? participant.participationDates
-        : [],
-      lastParticipatedAt: participant.lastParticipatedAt || "",
-      lastParticipatedAtMs: Number(participant.lastParticipatedAtMs || 0),
-      lastAccuracy: Number.isFinite(Number(participant.lastAccuracy))
-        ? Math.round(Number(participant.lastAccuracy))
-        : null
-    }))
+    .map((participant) => {
+      const accuracyStats = getAccuracyStats(participant);
+
+      return {
+        name: participant.name,
+        totalCount: Number(participant.totalCount || 0),
+        participationDates: Array.isArray(participant.participationDates)
+          ? participant.participationDates
+          : [],
+        lastParticipatedAt: participant.lastParticipatedAt || "",
+        lastParticipatedAtMs: Number(participant.lastParticipatedAtMs || 0),
+        lastAccuracy: accuracyStats.recent,
+        accuracyStats
+      };
+    })
     .sort((a, b) => {
       return b.lastParticipatedAtMs - a.lastParticipatedAtMs;
     });
