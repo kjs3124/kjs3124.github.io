@@ -20,7 +20,8 @@ window.VoicePracticeConstants = {
 오늘은 생각 읽기 책 <치카치카 치카 탐정- 까르르 마을의 아이들을 지켜라!>이야기를 보며
 대상간의 공통점과 차이점을 찾는 비교와 대조에 대해 알아보고,
 이 방법으로 새로운 놀이 기구를 생각해 발표를 해 볼 거예요.`,
-  AVERAGE_SPEED_SECONDS: 65,
+  SPEED_TARGET_MIN_SECONDS: 42,
+  SPEED_TARGET_MAX_SECONDS: 45,
   PRONUNCIATION_TIME_LIMIT_SECONDS: 10,
   DEFAULT_PRONUNCIATION_QUESTION_COUNT: 10
 };

@@ -2,6 +2,8 @@
 const {
   PRONUNCIATION_SENTENCES,
   SPEED_TEXT,
+  SPEED_TARGET_MIN_SECONDS,
+  SPEED_TARGET_MAX_SECONDS,
   PRONUNCIATION_TIME_LIMIT_SECONDS,
   DEFAULT_PRONUNCIATION_QUESTION_COUNT
 } = window.VoicePracticeConstants;
@@ -592,7 +594,9 @@ function VoicePracticeSite() {
                 >
                   <div className="mb-8 text-sm font-black text-teal-700">02</div>
                   <div className="text-2xl font-black text-slate-950">속도 연습</div>
-                  <p className="mt-3 text-sm font-bold leading-6 text-slate-500">읽는 시간을 평균 기준과 비교합니다.</p>
+                  <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
+                    읽는 시간을 {SPEED_TARGET_MIN_SECONDS}-{SPEED_TARGET_MAX_SECONDS}초 기준과 비교합니다.
+                  </p>
                 </button>
                 {isAdminUser && (
                   <button
@@ -848,7 +852,7 @@ function VoicePracticeSite() {
                 <p className="text-sm font-black text-teal-700">속도</p>
                 <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
                 <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
-                  문장을 모두 읽은 뒤 종료하면 평균 속도와 비교합니다.
+                  문장을 모두 읽은 뒤 종료하면 {SPEED_TARGET_MIN_SECONDS}-{SPEED_TARGET_MAX_SECONDS}초 기준과 비교합니다.
                 </p>
               </div>
               <div className="mb-8 grid gap-4 sm:grid-cols-3">
