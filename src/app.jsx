@@ -60,18 +60,11 @@ function normalizePronunciationItems(sentences) {
   return items;
 }
 
-function parseSentenceLine(line) {
-  const trimmed = String(line || "").trim();
-  const match = trimmed.match(/^\[([^\]]+)\]\s*(.+)$/);
-
-  if (!match) {
-    return { category: "general", text: trimmed };
-  }
-
-  const category = CATEGORY_ID_BY_LABEL[match[1].trim()] || "general";
+function parseSentenceParagraph(paragraph) {
+  const trimmed = String(paragraph || "").trim();
   return {
-    category,
-    text: match[2].trim()
+    category: "general",
+    text: trimmed
   };
 }
 
@@ -79,7 +72,7 @@ function formatSentencesForCategory(items, category) {
   return (Array.isArray(items) ? items : [])
     .filter((item) => item.category === category)
     .map((item) => item.text)
-    .join("\n");
+    .join("\n\n");
 }
 
 function VoicePracticeSite() {
@@ -91,7 +84,6 @@ function VoicePracticeSite() {
           shuffleSentences(PRONUNCIATION_SENTENCES)
         );
         const [sentencePool, setSentencePool] = useState(() => normalizePronunciationItems(PRONUNCIATION_SENTENCES));
-        const [pronunciationCategory, setPronunciationCategory] = useState("general");
         const [pronunciationIndex, setPronunciationIndex] = useState(0);
         const [pronunciationQuestionCount, setPronunciationQuestionCount] = useState(DEFAULT_PRONUNCIATION_QUESTION_COUNT);
         const [pronunciationTimeLimit, setPronunciationTimeLimit] = useState(PRONUNCIATION_TIME_LIMIT_SECONDS);
@@ -151,11 +143,10 @@ function VoicePracticeSite() {
           SPEED_PRACTICE_TYPES.find((type) => type.id === selectedSpeedTypeId) || SPEED_PRACTICE_TYPES[0]
         ), [selectedSpeedTypeId]);
         const speedResult = useMemo(() => getSpeedResultText(speedSeconds, selectedSpeedType), [speedSeconds, selectedSpeedType]);
-        const filteredSentencePool = useMemo(() => {
-          const matched = sentencePool.filter((item) => item.category === pronunciationCategory);
-          return matched.length ? matched : sentencePool.filter((item) => item.category === "general");
-        }, [sentencePool, pronunciationCategory]);
-        const sentenceCountMax = Math.max(1, filteredSentencePool.length);
+        const generalSentencePool = useMemo(() => (
+          sentencePool.filter((item) => item.category === "general")
+        ), [sentencePool]);
+        const sentenceCountMax = Math.max(1, generalSentencePool.length);
 
         const formatAccuracy = (accuracy) => (
           typeof accuracy === "number" ? `${accuracy}%` : "-"
@@ -256,8 +247,8 @@ function VoicePracticeSite() {
 
         const saveAdminSentences = async () => {
           const categorySentences = adminSentencesText
-            .split(/\n+/)
-            .map(parseSentenceLine)
+            .split(/\n\s*\n+/)
+            .map(parseSentenceParagraph)
             .filter((sentence) => sentence.text)
             .map((sentence) => ({
               category: adminSentenceCategory,
@@ -520,11 +511,9 @@ function VoicePracticeSite() {
         const beginPronunciationRecording = async () => {
           setRecordMessage("");
           const latestSentences = await loadPracticeSentences();
-          const categorySentences = latestSentences.filter((item) => item.category === pronunciationCategory);
-          const fallbackSentences = latestSentences.filter((item) => item.category === "general");
-          const availableSentences = categorySentences.length ? categorySentences : fallbackSentences;
-          const selectedCount = Math.min(pronunciationQuestionCount, availableSentences.length);
-          const shuffledSentences = shuffleSentences(availableSentences)
+          const generalSentences = latestSentences.filter((item) => item.category === "general");
+          const selectedCount = Math.min(pronunciationQuestionCount, generalSentences.length);
+          const shuffledSentences = shuffleSentences(generalSentences)
             .slice(0, selectedCount)
             .map((item) => item.text);
           setActivePronunciationSentences(shuffledSentences);
@@ -836,7 +825,7 @@ function VoicePracticeSite() {
                 <div className="mb-4">
                   <h3 className="text-xl font-black text-slate-950">연습 문장 관리</h3>
                   <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                    유형을 선택한 뒤 문장을 한 줄에 하나씩 입력하고 저장하세요.
+                    유형을 선택한 뒤 문단 단위로 입력하세요. 문단은 빈 줄로 구분됩니다.
                   </p>
                 </div>
                 <div className="mb-4 grid gap-3 sm:grid-cols-3">
@@ -862,7 +851,7 @@ function VoicePracticeSite() {
                   value={adminSentencesText}
                   onChange={(e) => setAdminSentencesText(e.target.value)}
                   className="min-h-[220px] w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold leading-7 text-slate-950 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                  placeholder={`${CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 문장을 한 줄에 하나씩 입력하세요.`}
+                  placeholder={`${CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 문장을 문단 단위로 입력하세요.\n\n문단 사이에는 빈 줄을 넣어 구분합니다.`}
                 />
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <button
@@ -967,34 +956,6 @@ function VoicePracticeSite() {
               </div>
 
               <div className="mb-8 grid gap-5">
-                <div className="quiet-surface block p-5">
-                  <div className="mb-3 flex items-center justify-between text-sm font-bold text-gray-700">
-                    <span>문항 유형</span>
-                    <span>{CATEGORY_LABEL_BY_ID[pronunciationCategory]}</span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {PRONUNCIATION_CATEGORIES.map((category) => (
-                      <button
-                        key={category.id}
-                        onClick={() => {
-                          setPronunciationCategory(category.id);
-                          const matchedCount = sentencePool.filter((item) => item.category === category.id).length;
-                          const fallbackCount = sentencePool.filter((item) => item.category === "general").length;
-                          const nextCount = Math.max(1, matchedCount || fallbackCount);
-                          setPronunciationQuestionCount((prev) => Math.min(prev, nextCount));
-                        }}
-                        className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
-                          pronunciationCategory === category.id
-                            ? "border-blue-700 bg-blue-700 text-white"
-                            : "border-slate-300 bg-white text-slate-700 hover:border-blue-500"
-                        }`}
-                      >
-                        {category.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <label className="quiet-surface block p-5">
                   <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
                     <span>문항 수</span>
