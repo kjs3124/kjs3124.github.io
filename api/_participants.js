@@ -7,8 +7,8 @@ const KOREA_TIME_ZONE = "Asia/Seoul";
 const SENTENCE_CATEGORY_ALIASES = {
   general: "general",
   "일반": "general",
-  greeting: "general",
-  "인사": "general",
+  greeting: "greeting",
+  "인사": "greeting",
   writing: "writing",
   "글쓰기": "writing",
   "글쓰기 안내": "writing",

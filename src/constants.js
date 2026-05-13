@@ -11,6 +11,7 @@ const GREETING_SPEED_TEXT = `우리 친구들~ 안녕! 한 주 동안 잘 지냈
 window.VoicePracticeConstants = {
   PRONUNCIATION_CATEGORIES: [
     { id: "general", label: "일반" },
+    { id: "greeting", label: "인사" },
     { id: "writing", label: "글쓰기 안내" },
     { id: "presentation", label: "발표 경청" }
   ],

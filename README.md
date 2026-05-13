@@ -9,4 +9,4 @@
 
 - 참여 기록은 이름별로 Vercel Blob에 저장
 - 관리자 코드와 발음 연습 문장은 Vercel Blob에 저장
-- 발음 연습 문장 유형: `general`, `writing`, `presentation`
+- 발음 연습 문장 유형: `general`, `greeting`, `writing`, `presentation`
