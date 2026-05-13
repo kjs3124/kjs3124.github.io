@@ -75,10 +75,11 @@ function parseSentenceLine(line) {
   };
 }
 
-function formatSentenceLine(item) {
-  const category = item.category || "general";
-  const label = CATEGORY_LABEL_BY_ID[category] || CATEGORY_LABEL_BY_ID.general;
-  return category === "general" ? item.text : `[${label}] ${item.text}`;
+function formatSentencesForCategory(items, category) {
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => item.category === category)
+    .map((item) => item.text)
+    .join("\n");
 }
 
 function VoicePracticeSite() {
@@ -123,6 +124,7 @@ function VoicePracticeSite() {
         const [isAdminConfigLoading, setIsAdminConfigLoading] = useState(false);
         const [adminSentencesMessage, setAdminSentencesMessage] = useState("");
         const [adminSentencesText, setAdminSentencesText] = useState("");
+        const [adminSentenceCategory, setAdminSentenceCategory] = useState("general");
         const [isAdminSentencesLoading, setIsAdminSentencesLoading] = useState(false);
         const [isAdminUser, setIsAdminUser] = useState(false);
         const [micLevel, setMicLevel] = useState(0);
@@ -239,7 +241,8 @@ function VoicePracticeSite() {
               ? loadedSentences
               : sentencePool;
 
-            setAdminSentencesText(sentences.map(formatSentenceLine).join("\n"));
+            setSentencePool(sentences);
+            setAdminSentencesText(formatSentencesForCategory(sentences, adminSentenceCategory));
             setAdminSentencesMessage(
               data.updatedAt ? `연습 문장을 불러왔습니다. 마지막 수정: ${data.updatedAt}` : "저장된 문장이 없어 현재 기본 문장을 표시합니다."
             );
@@ -252,10 +255,18 @@ function VoicePracticeSite() {
         };
 
         const saveAdminSentences = async () => {
-          const sentences = adminSentencesText
+          const categorySentences = adminSentencesText
             .split(/\n+/)
             .map(parseSentenceLine)
-            .filter((sentence) => sentence.text);
+            .filter((sentence) => sentence.text)
+            .map((sentence) => ({
+              category: adminSentenceCategory,
+              text: sentence.text
+            }));
+          const sentences = [
+            ...sentencePool.filter((sentence) => sentence.category !== adminSentenceCategory),
+            ...categorySentences
+          ];
 
           setIsAdminSentencesLoading(true);
           setAdminSentencesMessage("");
@@ -267,7 +278,7 @@ function VoicePracticeSite() {
             });
             const savedSentences = normalizePronunciationItems(data.sentences);
             const nextSentences = savedSentences.length ? savedSentences : defaultSentenceItems;
-            setAdminSentencesText(nextSentences.map(formatSentenceLine).join("\n"));
+            setAdminSentencesText(formatSentencesForCategory(nextSentences, adminSentenceCategory));
             setSentencePool(nextSentences);
             setPronunciationQuestionCount((prev) => Math.min(prev, nextSentences.length));
             setAdminSentencesMessage(
@@ -787,7 +798,7 @@ function VoicePracticeSite() {
                 <div className="mb-4">
                   <h3 className="text-xl font-black text-slate-950">관리자 코드 관리</h3>
                   <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                    코드는 Vercel Blob의 config/admin.json에 저장됩니다. 한 줄에 하나씩 입력하세요.
+                    관리자 코드를 한 줄에 하나씩 입력하세요.
                   </p>
                 </div>
                 <textarea
@@ -825,15 +836,33 @@ function VoicePracticeSite() {
                 <div className="mb-4">
                   <h3 className="text-xl font-black text-slate-950">연습 문장 관리</h3>
                   <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                    문장은 Vercel Blob의 config/pronunciation-sentences.json에 저장됩니다.
-                    유형은 [일반], [글쓰기 안내], [발표 경청]을 줄 앞에 붙이고, 유형이 없으면 일반 문항으로 저장됩니다.
+                    유형을 선택한 뒤 문장을 한 줄에 하나씩 입력하고 저장하세요.
                   </p>
+                </div>
+                <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                  {PRONUNCIATION_CATEGORIES.map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => {
+                        setAdminSentenceCategory(category.id);
+                        setAdminSentencesText(formatSentencesForCategory(sentencePool, category.id));
+                        setAdminSentencesMessage(`${category.label} 문장을 편집합니다.`);
+                      }}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
+                        adminSentenceCategory === category.id
+                          ? "border-slate-950 bg-slate-950 text-white"
+                          : "border-slate-300 bg-white text-slate-700 hover:border-slate-900"
+                      }`}
+                    >
+                      {category.label}
+                    </button>
+                  ))}
                 </div>
                 <textarea
                   value={adminSentencesText}
                   onChange={(e) => setAdminSentencesText(e.target.value)}
                   className="min-h-[220px] w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold leading-7 text-slate-950 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                  placeholder={`일반 문장은 그대로 입력하세요.\n[글쓰기 안내] 글쓰기 활동을 시작하기 전 주제를 다시 확인해 봅시다.\n[발표 경청] 친구가 발표할 때는 말하는 사람을 바라봅니다.`}
+                  placeholder={`${CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 문장을 한 줄에 하나씩 입력하세요.`}
                 />
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <button
@@ -852,7 +881,7 @@ function VoicePracticeSite() {
                       isAdminSentencesLoading ? "btn-muted" : "btn-primary"
                     }`}
                   >
-                    연습 문장 저장
+                    {CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 문장 저장
                   </button>
                 </div>
                 {adminSentencesMessage && (
@@ -949,7 +978,9 @@ function VoicePracticeSite() {
                         key={category.id}
                         onClick={() => {
                           setPronunciationCategory(category.id);
-                          const nextCount = Math.max(1, sentencePool.filter((item) => item.category === category.id).length);
+                          const matchedCount = sentencePool.filter((item) => item.category === category.id).length;
+                          const fallbackCount = sentencePool.filter((item) => item.category === "general").length;
+                          const nextCount = Math.max(1, matchedCount || fallbackCount);
                           setPronunciationQuestionCount((prev) => Math.min(prev, nextCount));
                         }}
                         className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
