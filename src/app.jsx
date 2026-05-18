@@ -1072,7 +1072,7 @@ function VoicePracticeSite() {
                   onClick={() => setShowPronunciationDetail((prev) => !prev)}
                   className="btn btn-primary text-lg"
                 >
-                  내 녹음 확인하기
+                  기록 확인하기
                 </button>
               </div>
 
@@ -1082,10 +1082,10 @@ function VoicePracticeSite() {
                     <div key={item.index} className="quiet-surface p-5">
                       <div className="font-black text-blue-700 mb-3">문장 {idx + 1}</div>
                       <p className="text-sm leading-7 text-slate-700">
-                        <b>녹음한 내용:</b> {item.expected}
+                        <b>원본 내용:</b> {item.expected}
                       </p>
                       <p className="text-sm leading-7 text-slate-700">
-                        <b>ai가 음성인식해서 입력된 문장내용:</b> {item.recognized || "인식된 내용이 없습니다."}
+                        <b>음성인식해서 입력된 문장 내용:</b> {item.recognized || "인식된 내용이 없습니다."}
                       </p>
                       <p className="text-sm leading-7 text-slate-700">
                         <b>인식률:</b> {item.accuracy}%
@@ -1228,18 +1228,18 @@ function VoicePracticeSite() {
                   onClick={() => setShowSpeedDetail((prev) => !prev)}
                   className="btn btn-teal text-lg"
                 >
-                  내 녹음 확인하기
+                  기록 확인하기
                 </button>
               </div>
 
               {showSpeedDetail && (
                 <div className="quiet-surface mt-8 p-5">
                   <p className="text-sm leading-7 mb-4 text-slate-700">
-                    <b>녹음한 내용:</b>
+                    <b>원본 내용:</b>
                   </p>
                   <p className="text-sm leading-7 whitespace-pre-line mb-5 text-slate-700">{selectedSpeedText}</p>
                   <p className="text-sm leading-7 mb-4 text-slate-700">
-                    <b>ai가 음성인식해서 입력된 문장내용:</b>
+                    <b>음성인식해서 입력된 문장 내용:</b>
                   </p>
                   <p className="text-sm leading-7 whitespace-pre-line text-slate-700">
                     {speedRecognizedText || "인식된 내용이 없습니다."}
