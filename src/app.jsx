@@ -705,687 +705,158 @@ function VoicePracticeSite() {
           };
         }, []);
 
-        const HomeButton = () => (
-          <button
-            onClick={goToPracticeMenu}
-            className="top-button"
-          >
-            ↩ 처음으로
-          </button>
-        );
-
-        const MicLevelMeter = () => (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between text-sm font-black text-slate-600">
-              <span>마이크 입력</span>
-              <span>{micLevel}%</span>
-            </div>
-            <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className={`h-full rounded-full transition-[width] duration-100 ${
-                  micLevel > 12 ? "bg-emerald-500" : "bg-slate-400"
-                }`}
-                style={{ width: `${micLevel}%` }}
-              />
-            </div>
-            <p className={`mt-3 text-sm font-bold ${micMessage ? "text-red-500" : "text-slate-500"}`}>
-              {micMessage || (micLevel > 12 ? "입력이 감지되고 있습니다." : "소리가 작거나 입력이 없습니다.")}
-            </p>
-          </div>
-        );
-
-        const renderStartScreen = () => (
-          <main className="app-shell center-shell">
-            <section className="workspace fade-up">
-              <aside className="workspace-side">
-                <div>
-                  <div className="mb-8 inline-flex rounded-full border border-white/20 px-4 py-2 text-sm font-black text-blue-100">
-                    음성 연습 도구
-                  </div>
-                  <h1 className="text-6xl font-black leading-tight tracking-normal">음성 연습</h1>
-                  <p className="mt-5 max-w-sm text-base font-bold leading-7 text-blue-100">
-                    발음 정확도와 읽기 속도를 한 번에 확인하는 수업용 연습 도구입니다.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 text-sm font-bold text-blue-100">
-                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">발음 연습 문항 수 조절</div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">문장당 제한 시간 설정</div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4">참여 기록 자동 저장</div>
-                </div>
-              </aside>
-
-              <div className="workspace-main flex items-center">
-                <div className="w-full">
-                  <div className="mb-8">
-                    <p className="text-sm font-black uppercase text-blue-600">Start</p>
-                    <h2 className="mt-2 text-3xl font-black text-slate-950">연습 정보를 입력하세요</h2>
-                  </div>
-
-                  <label className="block text-base font-black text-slate-700 mb-3">이름</label>
-                  <input
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      setStartMessage("");
-                    }}
-                    placeholder="이름을 입력하세요"
-                    className="mb-8 w-full rounded-2xl border border-slate-300 bg-white px-5 py-4 text-lg font-bold outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                  />
-                  {startMessage && <p className="-mt-5 mb-8 text-sm font-black text-red-600">{startMessage}</p>}
-
-                  <button
-                    onClick={enterPracticeMenu}
-                    className="btn btn-primary w-full text-lg"
-                  >
-                    시작
-                  </button>
-                </div>
-              </div>
-            </section>
-          </main>
-        );
-
-        const renderMyRecordPanel = () => {
-          const records = Array.isArray(myRecord?.records) ? myRecord.records : [];
-          const recentRecords = records.slice(0, 5);
-
+        if (screen === "start") {
           return (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-black text-blue-600">내 기록</p>
-                  <h3 className="mt-1 text-xl font-black text-slate-950">누적 참여 기록</h3>
-                </div>
-                <button
-                  onClick={loadMyRecord}
-                  disabled={isMyRecordLoading}
-                  className={`rounded-2xl border px-4 py-2 text-sm font-black transition ${
-                    isMyRecordLoading
-                      ? "border-slate-200 bg-slate-100 text-slate-400"
-                      : "border-slate-300 bg-white text-slate-700 hover:border-blue-600 hover:text-blue-600"
-                  }`}
-                >
-                  {isMyRecordLoading ? "조회 중" : "새로고침"}
-                </button>
-              </div>
-
-              {myRecord ? (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-5">
-                    <div className="quiet-surface p-4">
-                      <div className="text-xs font-black text-slate-400">총 참여</div>
-                      <div className="mt-2 text-2xl font-black text-slate-950">{myRecord.totalCount || 0}회</div>
-                    </div>
-                    <div className="quiet-surface p-4">
-                      <div className="text-xs font-black text-slate-400">최근</div>
-                      <div className="mt-2 text-2xl font-black text-slate-950">{formatAccuracy(myRecord.accuracyStats?.recent ?? myRecord.lastAccuracy)}</div>
-                    </div>
-                    <div className="quiet-surface p-4">
-                      <div className="text-xs font-black text-slate-400">최고</div>
-                      <div className="mt-2 text-2xl font-black text-slate-950">{formatAccuracy(myRecord.accuracyStats?.highest)}</div>
-                    </div>
-                    <div className="quiet-surface p-4">
-                      <div className="text-xs font-black text-slate-400">최저</div>
-                      <div className="mt-2 text-2xl font-black text-slate-950">{formatAccuracy(myRecord.accuracyStats?.lowest)}</div>
-                    </div>
-                    <div className="quiet-surface p-4">
-                      <div className="text-xs font-black text-slate-400">평균</div>
-                      <div className="mt-2 text-2xl font-black text-slate-950">{formatAccuracy(myRecord.accuracyStats?.average)}</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
-                    <div className="min-w-[520px]">
-                      <div className="grid grid-cols-[1fr_110px_90px] bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
-                        <div>참여일자</div>
-                        <div>연습</div>
-                        <div>인식률</div>
-                      </div>
-                      {recentRecords.length === 0 ? (
-                        <div className="px-4 py-6 text-center text-sm font-bold text-slate-500">상세 기록이 없습니다.</div>
-                      ) : (
-                        recentRecords.map((record, index) => (
-                          <div
-                            key={`${record.participatedAt}-${index}`}
-                            className="grid grid-cols-[1fr_110px_90px] border-t border-slate-200 px-4 py-3 text-sm font-bold text-slate-700"
-                          >
-                            <div>{record.participatedAt || "-"}</div>
-                            <div>{getPracticeTypeLabel(record.practiceType)}</div>
-                            <div>{formatAccuracy(record.accuracy)}</div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
-                  {isMyRecordLoading ? "내 기록을 불러오는 중입니다." : myRecordMessage || "아직 저장된 기록이 없습니다."}
-                </div>
-              )}
-
-              {myRecordMessage && myRecord && (
-                <p className="mt-4 text-sm font-bold text-slate-500">{myRecordMessage}</p>
-              )}
-            </div>
+            <StartScreen
+              name={name}
+              startMessage={startMessage}
+              onNameChange={(value) => {
+                setName(value);
+                setStartMessage("");
+              }}
+              onSubmit={enterPracticeMenu}
+            />
           );
-        };
+        }
 
-        const renderMenuScreen = () => (
-          <main className="app-shell center-shell">
-            <section className="compact-panel p-8">
-              <div className="mb-8 flex flex-col gap-2 border-b border-slate-200 pb-6">
-                <p className="text-sm font-black text-blue-600">연습 메뉴</p>
-                <h2 className="text-4xl font-black text-slate-950">{menuTitle}</h2>
-              </div>
+        if (screen === "menu") {
+          return (
+            <MenuScreen
+              menuTitle={menuTitle}
+              isAdminUser={isAdminUser}
+              myRecord={myRecord}
+              myRecordMessage={myRecordMessage}
+              isMyRecordLoading={isMyRecordLoading}
+              onSelectPronunciation={() => setScreen("pronunciation-intro")}
+              onSelectSpeed={() => setScreen("speed-intro")}
+              onOpenAdmin={openAdminScreen}
+              onRefreshMyRecord={loadMyRecord}
+              formatAccuracy={formatAccuracy}
+              getPracticeTypeLabel={getPracticeTypeLabel}
+            />
+          );
+        }
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <button
-                  onClick={() => setScreen("pronunciation-intro")}
-                  className="surface p-6 text-left hover:border-blue-500 hover:shadow-xl hover:shadow-blue-100"
-                >
-                  <div className="mb-8 text-sm font-black text-blue-600">01</div>
-                  <div className="text-2xl font-black text-slate-950">발음 연습</div>
-                  <p className="mt-3 text-sm font-bold leading-6 text-slate-500">문장을 읽고 인식률을 확인합니다.</p>
-                </button>
-                <button
-                  onClick={() => setScreen("speed-intro")}
-                  className="surface p-6 text-left hover:border-teal-600 hover:shadow-xl hover:shadow-teal-100"
-                >
-                  <div className="mb-8 text-sm font-black text-teal-700">02</div>
-                  <div className="text-2xl font-black text-slate-950">속도 연습</div>
-                  <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
-                    인사, 글쓰기 안내, 발표 경청 중 하나를 골라 읽는 속도를 확인합니다.
-                  </p>
-                </button>
-                {isAdminUser && (
-                  <button
-                    onClick={openAdminScreen}
-                    className="surface p-6 text-left hover:border-slate-900 sm:col-span-2"
-                  >
-                    <div className="mb-5 text-sm font-black text-slate-500">관리</div>
-                    <div className="text-xl font-black text-slate-950">관리자 페이지</div>
-                    <p className="mt-2 text-sm font-bold leading-6 text-slate-500">관리자 코드와 참여 기록을 관리합니다.</p>
-                  </button>
-                )}
-              </div>
+        if (screen === "admin") {
+          return (
+            <AdminScreen
+              adminCodesText={adminCodesText}
+              adminConfigMessage={adminConfigMessage}
+              adminSentenceCategory={adminSentenceCategory}
+              adminSentencesText={adminSentencesText}
+              adminSentencesMessage={adminSentencesMessage}
+              adminParticipants={adminParticipants}
+              adminMessage={adminMessage}
+              isAdminConfigLoading={isAdminConfigLoading}
+              isAdminSentencesLoading={isAdminSentencesLoading}
+              isAdminLoading={isAdminLoading}
+              isAdminGeneralSentence={isAdminGeneralSentence}
+              sentencePool={sentencePool}
+              categoryLabelById={CATEGORY_LABEL_BY_ID}
+              onHome={goToPracticeMenu}
+              onAdminCodesTextChange={setAdminCodesText}
+              onLoadAdminConfig={loadAdminConfig}
+              onSaveAdminConfig={saveAdminConfig}
+              onAdminSentenceCategoryChange={setAdminSentenceCategory}
+              onAdminSentencesTextChange={setAdminSentencesText}
+              onAdminSentencesMessageChange={setAdminSentencesMessage}
+              onLoadAdminSentences={loadAdminSentences}
+              onSaveAdminSentences={saveAdminSentences}
+              onLoadAdminParticipants={loadAdminParticipants}
+              formatAccuracy={formatAccuracy}
+              formatSentencesForCategory={formatSentencesForCategory}
+            />
+          );
+        }
 
-              {!isAdminUser && renderMyRecordPanel()}
-            </section>
-          </main>
-        );
+        if (screen === "pronunciation-intro") {
+          return (
+            <PronunciationIntroScreen
+              pronunciationQuestionCount={pronunciationQuestionCount}
+              pronunciationTimeLimit={pronunciationTimeLimit}
+              sentenceCountMax={sentenceCountMax}
+              onHome={goToPracticeMenu}
+              onQuestionCountChange={setPronunciationQuestionCount}
+              onTimeLimitChange={setPronunciationTimeLimit}
+              onStart={beginPronunciationRecording}
+            />
+          );
+        }
 
-        const renderAdminScreen = () => (
-          <main className="app-shell">
-            <section className="compact-panel wide-panel relative mx-auto p-8">
-              <HomeButton />
-              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
-                <p className="text-sm font-black text-slate-500">관리자</p>
-                <h2 className="mt-2 text-4xl font-black text-slate-950">관리자 페이지</h2>
-                <p className="mt-3 text-sm font-bold text-slate-500">관리자 코드, 연습 문장, 참여자별 누적 기록을 확인합니다.</p>
-              </div>
+        if (screen === "pronunciation-recording") {
+          return (
+            <PronunciationRecordingScreen
+              pronunciationTimeLeft={pronunciationTimeLeft}
+              pronunciationIndex={pronunciationIndex}
+              activePronunciationSentences={activePronunciationSentences}
+              recognitionMessage={recognitionMessage}
+              micLevel={micLevel}
+              micMessage={micMessage}
+              onHome={goToPracticeMenu}
+            />
+          );
+        }
 
-              <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4">
-                  <h3 className="text-xl font-black text-slate-950">관리자 코드 관리</h3>
-                  <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                    관리자 코드를 한 줄에 하나씩 입력하세요.
-                  </p>
-                </div>
-                <textarea
-                  value={adminCodesText}
-                  onChange={(e) => setAdminCodesText(e.target.value)}
-                  className="min-h-[140px] w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold text-slate-950 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                  placeholder="19001088"
-                />
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <button
-                    onClick={loadAdminConfig}
-                    disabled={isAdminConfigLoading}
-                    className={`btn text-base ${
-                      isAdminConfigLoading ? "btn-muted" : "border border-slate-300 bg-white text-slate-950 hover:bg-slate-50"
-                    }`}
-                  >
-                    다시 불러오기
-                  </button>
-                  <button
-                    onClick={saveAdminConfig}
-                    disabled={isAdminConfigLoading}
-                    className={`btn text-base ${
-                      isAdminConfigLoading ? "btn-muted" : "btn-primary"
-                    }`}
-                  >
-                    관리자 코드 저장
-                  </button>
-                </div>
-                {adminConfigMessage && (
-                  <p className="mt-4 text-sm font-bold text-slate-600">{adminConfigMessage}</p>
-                )}
-              </div>
+        if (screen === "pronunciation-result") {
+          return (
+            <PronunciationResultScreen
+              overallPronunciationAccuracy={overallPronunciationAccuracy}
+              recordMessage={recordMessage}
+              showPronunciationDetail={showPronunciationDetail}
+              pronunciationResults={pronunciationResults}
+              onHome={goToPracticeMenu}
+              onRetry={retryPronunciationPractice}
+              onToggleDetail={() => setShowPronunciationDetail((prev) => !prev)}
+            />
+          );
+        }
 
-              <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4">
-                  <h3 className="text-xl font-black text-slate-950">연습 문장 관리</h3>
-                  <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                    {isAdminGeneralSentence
-                      ? "일반 문항은 문단 단위로 입력하세요. 문단은 빈 줄로 구분됩니다."
-                      : "속도 연습 문항은 입력한 전체 내용을 그대로 사용합니다."}
-                  </p>
-                </div>
-                <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                  {PRONUNCIATION_CATEGORIES.map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => {
-                        setAdminSentenceCategory(category.id);
-                        setAdminSentencesText(formatSentencesForCategory(sentencePool, category.id));
-                        setAdminSentencesMessage(`${category.label} 문장을 편집합니다.`);
-                      }}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
-                        adminSentenceCategory === category.id
-                          ? "border-slate-950 bg-slate-950 text-white"
-                          : "border-slate-300 bg-white text-slate-700 hover:border-slate-900"
-                      }`}
-                    >
-                      {category.label}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={adminSentencesText}
-                  onChange={(e) => setAdminSentencesText(e.target.value)}
-                  className="min-h-[220px] w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold leading-7 text-slate-950 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                  placeholder={
-                    isAdminGeneralSentence
-                      ? `${CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 문장을 문단 단위로 입력하세요.\n\n문단 사이에는 빈 줄을 넣어 구분합니다.`
-                      : `${CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 속도 연습에 사용할 전체 내용을 입력하세요.`
-                  }
-                />
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <button
-                    onClick={loadAdminSentences}
-                    disabled={isAdminSentencesLoading}
-                    className={`btn text-base ${
-                      isAdminSentencesLoading ? "btn-muted" : "border border-slate-300 bg-white text-slate-950 hover:bg-slate-50"
-                    }`}
-                  >
-                    문장 다시 불러오기
-                  </button>
-                  <button
-                    onClick={saveAdminSentences}
-                    disabled={isAdminSentencesLoading}
-                    className={`btn text-base ${
-                      isAdminSentencesLoading ? "btn-muted" : "btn-primary"
-                    }`}
-                  >
-                    {CATEGORY_LABEL_BY_ID[adminSentenceCategory]} 문장 저장
-                  </button>
-                </div>
-                {adminSentencesMessage && (
-                  <p className="mt-4 text-sm font-bold text-slate-600">{adminSentencesMessage}</p>
-                )}
-              </div>
+        if (screen === "speed-intro") {
+          return (
+            <SpeedIntroScreen
+              speedPracticeTypes={SPEED_PRACTICE_TYPES}
+              selectedSpeedTypeId={selectedSpeedTypeId}
+              onHome={goToPracticeMenu}
+              onSpeedTypeChange={setSelectedSpeedTypeId}
+              onStart={() => setScreen("speed-practice")}
+            />
+          );
+        }
 
-              <div>
-                <button
-                  onClick={loadAdminParticipants}
-                  disabled={isAdminLoading}
-                  className={`btn w-full text-base ${
-                    isAdminLoading ? "btn-muted" : "border border-slate-300 bg-white text-slate-950 hover:bg-slate-50"
-                  }`}
-                >
-                  참여 기록 조회
-                </button>
-              </div>
+        if (screen === "speed-practice") {
+          return (
+            <SpeedPracticeScreen
+              selectedSpeedType={selectedSpeedType}
+              selectedSpeedText={selectedSpeedText}
+              speedCentiseconds={speedCentiseconds}
+              isSpeedRecording={isSpeedRecording}
+              recognitionMessage={recognitionMessage}
+              micLevel={micLevel}
+              micMessage={micMessage}
+              onBegin={beginSpeedRecording}
+              onEnd={endSpeedRecording}
+              formatRunningTimer={formatRunningTimer}
+            />
+          );
+        }
 
-              {adminMessage && <p className="mt-4 text-center text-sm font-bold text-gray-600">{adminMessage}</p>}
-
-              <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="min-w-[980px]">
-                  <div className="grid grid-cols-[1fr_110px_300px_2fr] bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
-                    <div>이름</div>
-                    <div>총 참여횟수</div>
-                    <div>인식률</div>
-                    <div>참여일자</div>
-                  </div>
-
-                  {adminParticipants.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-sm font-bold text-gray-500">조회된 참여자가 없습니다.</div>
-                  ) : (
-                    adminParticipants.map((participant) => (
-                      <div
-                        key={participant.name}
-                        className="grid grid-cols-[1fr_110px_300px_2fr] gap-3 border-t border-slate-200 px-4 py-4 text-sm text-slate-700"
-                      >
-                        <div className="font-black text-slate-950">{participant.name}</div>
-                        <div className="font-bold">{participant.totalCount}회</div>
-                        <div className="grid grid-cols-4 gap-2 font-bold">
-                          <div>
-                            <div className="text-xs text-slate-400">최근</div>
-                            <div>{formatAccuracy(participant.accuracyStats?.recent ?? participant.lastAccuracy)}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-400">최고</div>
-                            <div>{formatAccuracy(participant.accuracyStats?.highest)}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-400">최저</div>
-                            <div>{formatAccuracy(participant.accuracyStats?.lowest)}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-400">평균</div>
-                            <div>{formatAccuracy(participant.accuracyStats?.average)}</div>
-                          </div>
-                        </div>
-                        <div className="leading-6">
-                          {(participant.participationDates || []).map((date) => (
-                            <div key={date}>{date}</div>
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </section>
-          </main>
-        );
-
-        const renderPronunciationIntroScreen = () => (
-          <main className="app-shell center-shell">
-            <section className="compact-panel relative max-w-3xl p-8">
-              <HomeButton />
-              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
-                <p className="text-sm font-black text-blue-600">발음</p>
-                <h2 className="mt-2 text-4xl font-black text-slate-950">발음 연습 설정</h2>
-                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
-                  {pronunciationQuestionCount}개 문장을 문장당 {pronunciationTimeLimit}초 안에 읽습니다.
-                </p>
-              </div>
-
-              <div className="mb-8 grid gap-5">
-                <label className="quiet-surface block p-5">
-                  <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
-                    <span>문항 수</span>
-                    <span>{pronunciationQuestionCount}개</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max={sentenceCountMax}
-                    step="1"
-                    value={pronunciationQuestionCount}
-                    onChange={(e) => setPronunciationQuestionCount(Number(e.target.value))}
-                    className="range-input w-full accent-indigo-700"
-                  />
-                </label>
-
-                <label className="quiet-surface block p-5">
-                  <div className="mb-2 flex items-center justify-between text-sm font-bold text-gray-700">
-                    <span>문장당 제한 시간</span>
-                    <span>{pronunciationTimeLimit}초</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="3"
-                    max="20"
-                    step="1"
-                    value={pronunciationTimeLimit}
-                    onChange={(e) => setPronunciationTimeLimit(Number(e.target.value))}
-                    className="range-input w-full accent-indigo-700"
-                  />
-                </label>
-              </div>
-
-              <button
-                onClick={beginPronunciationRecording}
-                className="btn btn-primary w-full text-lg"
-              >
-                시작
-              </button>
-            </section>
-          </main>
-        );
-
-        const renderPronunciationRecordingScreen = () => (
-          <main className="app-shell center-shell">
-            <section className="compact-panel wide-panel relative p-8">
-              <HomeButton />
-              <div className="grid gap-6 pt-10 sm:grid-cols-[160px_1fr] sm:pt-0">
-                <div className="flex flex-col items-center justify-center rounded-3xl bg-blue-600 p-6 text-white">
-                  <div className="text-sm font-black text-blue-100">남은 시간</div>
-                  <div className="mt-2 text-7xl font-black">{pronunciationTimeLeft}</div>
-                  <div className="mt-2 text-sm font-black text-blue-100">
-                    {pronunciationIndex + 1} / {activePronunciationSentences.length}
-                  </div>
-                </div>
-                <div className="surface flex min-h-[260px] flex-col justify-center p-8 text-center">
-                  <div className="mb-4 text-sm font-black text-blue-600">연습 문장</div>
-                  <div className="text-3xl font-black leading-relaxed text-slate-950">
-                    {activePronunciationSentences[pronunciationIndex]}
-                  </div>
-                </div>
-              </div>
-              <p className="mt-6 text-center font-bold text-red-500">
-                {recognitionMessage || "녹음이 진행 중입니다..."}
-              </p>
-              <MicLevelMeter />
-            </section>
-          </main>
-        );
-
-        const renderPronunciationResultScreen = () => (
-          <main className="app-shell center-shell">
-            <section className="compact-panel relative max-w-3xl p-8">
-              <HomeButton />
-              <div className="pt-10 text-center sm:pt-0">
-                <p className="text-sm font-black text-blue-600">결과</p>
-                <div className="mt-4 text-8xl font-black text-slate-950">{overallPronunciationAccuracy}%</div>
-                <div className="mt-3 text-lg font-bold text-slate-500">
-                  {overallPronunciationAccuracy}%가 인식되었습니다.
-                </div>
-              </div>
-              {recordMessage && <p className="mb-6 text-center text-sm font-bold text-gray-500">{recordMessage}</p>}
-
-              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  onClick={retryPronunciationPractice}
-                  className="btn btn-dark text-lg"
-                >
-                  재도전
-                </button>
-                <button
-                  onClick={() => setShowPronunciationDetail((prev) => !prev)}
-                  className="btn btn-primary text-lg"
-                >
-                  기록 확인하기
-                </button>
-              </div>
-
-              {showPronunciationDetail && (
-                <div className="mt-8 grid gap-4">
-                  {pronunciationResults.map((item, idx) => (
-                    <div key={item.index} className="quiet-surface p-5">
-                      <div className="font-black text-blue-700 mb-3">문장 {idx + 1}</div>
-                      <p className="text-sm leading-7 text-slate-700">
-                        <b>원본 내용:</b> {item.expected}
-                      </p>
-                      <p className="text-sm leading-7 text-slate-700">
-                        <b>음성인식해서 입력된 문장 내용:</b> {item.recognized || "인식된 내용이 없습니다."}
-                      </p>
-                      <p className="text-sm leading-7 text-slate-700">
-                        <b>인식률:</b> {item.accuracy}%
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          </main>
-        );
-
-        const renderSpeedIntroScreen = () => (
-          <main className="app-shell center-shell">
-            <section className="compact-panel relative max-w-3xl p-8">
-              <HomeButton />
-              <div className="mb-8 border-b border-slate-200 pb-6 pt-10 sm:pt-0">
-                <p className="text-sm font-black text-teal-700">속도</p>
-                <h2 className="mt-2 text-4xl font-black text-slate-950">속도 연습</h2>
-                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">
-                  연습 종류를 고른 뒤 문장을 모두 읽으면 유형별 기준 속도와 비교합니다.
-                </p>
-              </div>
-
-              <div className="mb-8 grid gap-3 sm:grid-cols-3">
-                {SPEED_PRACTICE_TYPES.map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => setSelectedSpeedTypeId(type.id)}
-                    className={`rounded-2xl border p-5 text-left transition ${
-                      selectedSpeedTypeId === type.id
-                        ? "border-teal-700 bg-teal-700 text-white shadow-lg shadow-teal-100"
-                        : "border-slate-300 bg-white text-slate-700 hover:border-teal-600"
-                    }`}
-                  >
-                    <div className="text-lg font-black">{type.label}</div>
-                    <div className={`mt-2 text-sm font-bold ${
-                      selectedSpeedTypeId === type.id ? "text-teal-50" : "text-slate-500"
-                    }`}>
-                      기준 {type.targetMinSeconds}-{type.targetMaxSeconds}초
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mb-8 grid gap-4 sm:grid-cols-3">
-                <div className="quiet-surface p-5">
-                  <div className="text-sm font-black text-teal-700">01</div>
-                  <p className="mt-3 text-sm font-bold text-slate-600">시작 버튼을 누릅니다.</p>
-                </div>
-                <div className="quiet-surface p-5">
-                  <div className="text-sm font-black text-teal-700">02</div>
-                  <p className="mt-3 text-sm font-bold text-slate-600">문장을 소리 내어 읽습니다.</p>
-                </div>
-                <div className="quiet-surface p-5">
-                  <div className="text-sm font-black text-teal-700">03</div>
-                  <p className="mt-3 text-sm font-bold text-slate-600">종료 버튼으로 결과를 봅니다.</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setScreen("speed-practice")}
-                className="btn btn-teal w-full text-lg"
-              >
-                연습하기
-              </button>
-            </section>
-          </main>
-        );
-
-        const renderSpeedPracticeScreen = () => (
-          <main className="app-shell">
-            <section className="compact-panel wide-panel relative mx-auto p-8">
-              <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-black text-teal-700">속도 연습</p>
-                  <h2 className="mt-2 text-4xl font-black text-slate-950">{selectedSpeedType.label}</h2>
-                  <p className="mt-2 text-sm font-bold text-slate-500">
-                    기준 {selectedSpeedType.targetMinSeconds}-{selectedSpeedType.targetMaxSeconds}초
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-slate-950 px-5 py-3 text-2xl font-black text-white">
-                  {formatRunningTimer(speedCentiseconds)}
-                </div>
-              </div>
-
-              <div className="surface p-8 text-xl font-bold leading-10 text-slate-900 whitespace-pre-line">
-                {selectedSpeedText}
-              </div>
-
-              {recognitionMessage && (
-                <p className="mt-5 text-center font-bold text-red-500">{recognitionMessage}</p>
-              )}
-              <MicLevelMeter />
-
-              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <button
-                  onClick={beginSpeedRecording}
-                  disabled={isSpeedRecording}
-                  className={`btn text-lg ${
-                    isSpeedRecording ? "btn-muted" : "btn-teal"
-                  }`}
-                >
-                  시작하기
-                </button>
-                <button
-                  onClick={endSpeedRecording}
-                  disabled={!isSpeedRecording}
-                  className={`btn text-lg ${
-                    !isSpeedRecording ? "btn-muted" : "btn-danger"
-                  }`}
-                >
-                  종료하기
-                </button>
-              </div>
-            </section>
-          </main>
-        );
-
-        const renderSpeedResultScreen = () => (
-          <main className="app-shell center-shell">
-            <section className="compact-panel relative max-w-3xl p-8">
-              <HomeButton />
-              <div className="pt-10 text-center sm:pt-0">
-                <p className="text-sm font-black text-teal-700">결과</p>
-                <p className="mt-2 text-base font-black text-teal-700">{selectedSpeedType.label}</p>
-                <div className="mt-4 text-5xl font-black text-slate-950">{speedResult.title}</div>
-                <div className="mt-4 text-4xl font-black text-teal-700">{formatResultTime(speedSeconds)}</div>
-                <div className="mt-3 text-base font-bold text-slate-500">{speedResult.description}</div>
-              </div>
-              {recordMessage && <p className="mb-6 text-center text-sm font-bold text-gray-500">{recordMessage}</p>}
-
-              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  onClick={retrySpeedPractice}
-                  className="btn btn-dark text-lg"
-                >
-                  재도전
-                </button>
-                <button
-                  onClick={() => setShowSpeedDetail((prev) => !prev)}
-                  className="btn btn-teal text-lg"
-                >
-                  기록 확인하기
-                </button>
-              </div>
-
-              {showSpeedDetail && (
-                <div className="quiet-surface mt-8 p-5">
-                  <p className="text-sm leading-7 mb-4 text-slate-700">
-                    <b>원본 내용:</b>
-                  </p>
-                  <p className="text-sm leading-7 whitespace-pre-line mb-5 text-slate-700">{selectedSpeedText}</p>
-                  <p className="text-sm leading-7 mb-4 text-slate-700">
-                    <b>음성인식해서 입력된 문장 내용:</b>
-                  </p>
-                  <p className="text-sm leading-7 whitespace-pre-line text-slate-700">
-                    {speedRecognizedText || "인식된 내용이 없습니다."}
-                  </p>
-                </div>
-              )}
-            </section>
-          </main>
-        );
-
-        if (screen === "start") return renderStartScreen();
-        if (screen === "menu") return renderMenuScreen();
-        if (screen === "admin") return renderAdminScreen();
-        if (screen === "pronunciation-intro") return renderPronunciationIntroScreen();
-        if (screen === "pronunciation-recording") return renderPronunciationRecordingScreen();
-        if (screen === "pronunciation-result") return renderPronunciationResultScreen();
-        if (screen === "speed-intro") return renderSpeedIntroScreen();
-        if (screen === "speed-practice") return renderSpeedPracticeScreen();
-        if (screen === "speed-result") return renderSpeedResultScreen();
+        if (screen === "speed-result") {
+          return (
+            <SpeedResultScreen
+              selectedSpeedType={selectedSpeedType}
+              selectedSpeedText={selectedSpeedText}
+              speedResult={speedResult}
+              speedSeconds={speedSeconds}
+              recordMessage={recordMessage}
+              showSpeedDetail={showSpeedDetail}
+              speedRecognizedText={speedRecognizedText}
+              onHome={goToPracticeMenu}
+              onRetry={retrySpeedPractice}
+              onToggleDetail={() => setShowSpeedDetail((prev) => !prev)}
+              formatResultTime={formatResultTime}
+            />
+          );
+        }
 
         return null;
       }
