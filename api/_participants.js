@@ -249,6 +249,37 @@ export function normalizeParticipant(data) {
   };
 }
 
+export function getParticipantAccuracyStats(participant) {
+  const recordAccuracies = (Array.isArray(participant?.records) ? participant.records : [])
+    .filter((record) => record?.accuracy !== null && record?.accuracy !== undefined && record?.accuracy !== "")
+    .map((record) => Number(record.accuracy))
+    .filter((accuracy) => Number.isFinite(accuracy));
+
+  const accuracies = recordAccuracies.length
+    ? recordAccuracies
+    : Number.isFinite(Number(participant?.lastAccuracy))
+      ? [Number(participant.lastAccuracy)]
+      : [];
+
+  if (!accuracies.length) {
+    return {
+      recent: null,
+      highest: null,
+      lowest: null,
+      average: null
+    };
+  }
+
+  const sum = accuracies.reduce((acc, accuracy) => acc + accuracy, 0);
+
+  return {
+    recent: Math.round(accuracies[accuracies.length - 1]),
+    highest: Math.round(Math.max(...accuracies)),
+    lowest: Math.round(Math.min(...accuracies)),
+    average: Math.round(sum / accuracies.length)
+  };
+}
+
 export function normalizeName(name) {
   const trimmed = String(name || "").trim();
   return trimmed || "사용자";

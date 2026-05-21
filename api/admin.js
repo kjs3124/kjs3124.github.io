@@ -1,35 +1,4 @@
-import { getEffectiveAdminCodes, hasBlobToken, jsonResponse, listParticipants, readJsonBody } from "./_participants.js";
-
-function getAccuracyStats(participant) {
-  const recordAccuracies = (Array.isArray(participant.records) ? participant.records : [])
-    .filter((record) => record?.accuracy !== null && record?.accuracy !== undefined && record?.accuracy !== "")
-    .map((record) => Number(record.accuracy))
-    .filter((accuracy) => Number.isFinite(accuracy));
-
-  const accuracies = recordAccuracies.length
-    ? recordAccuracies
-    : Number.isFinite(Number(participant.lastAccuracy))
-      ? [Number(participant.lastAccuracy)]
-      : [];
-
-  if (!accuracies.length) {
-    return {
-      recent: null,
-      highest: null,
-      lowest: null,
-      average: null
-    };
-  }
-
-  const sum = accuracies.reduce((acc, accuracy) => acc + accuracy, 0);
-
-  return {
-    recent: Math.round(accuracies[accuracies.length - 1]),
-    highest: Math.round(Math.max(...accuracies)),
-    lowest: Math.round(Math.min(...accuracies)),
-    average: Math.round(sum / accuracies.length)
-  };
-}
+import { getEffectiveAdminCodes, getParticipantAccuracyStats, hasBlobToken, jsonResponse, listParticipants, readJsonBody } from "./_participants.js";
 
 export async function POST(request) {
   const body = await readJsonBody(request);
@@ -50,7 +19,7 @@ export async function POST(request) {
 
   const participants = (await listParticipants())
     .map((participant) => {
-      const accuracyStats = getAccuracyStats(participant);
+      const accuracyStats = getParticipantAccuracyStats(participant);
 
       return {
         name: participant.name,

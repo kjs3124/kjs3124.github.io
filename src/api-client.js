@@ -35,6 +35,10 @@ function recordParticipationRequest({ name, practiceType, accuracy }) {
   return postJson("/api/record", { name, practiceType, accuracy });
 }
 
+function loadMyRecordRequest({ name }) {
+  return postJson("/api/my-record", { name });
+}
+
 function loadAdminParticipantsRequest({ code }) {
   return postJson("/api/admin", { code });
 }
@@ -73,6 +77,7 @@ function saveAdminSentencesRequest({ code, sentences }) {
 
 window.VoicePracticeApi = {
   recordParticipationRequest,
+  loadMyRecordRequest,
   loadAdminParticipantsRequest,
   checkAdminAccessRequest,
   loadAdminConfigRequest,
